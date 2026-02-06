@@ -1,12 +1,10 @@
 # Redaction Plotter
 
-A generative art tool for creating plotter-ready asemic writing and abstract text compositions. Built with p5.js and claude code, optimized for pen plotter output.
+A generative art tool for creating plotter-ready asemic writing and abstract text compositions. Built with p5.js and Claude, optimized for pen plotter output.
 
 <img width="2680" height="3954" alt="Redaction_plotter-26" src="https://github.com/user-attachments/assets/99763e40-7f47-4142-81d2-f9c8eb57468d" />
 
-![Redaction Example](preview.png)
 <img width="2680" height="3432" alt="Redaction_plotter-27" src="https://github.com/user-attachments/assets/4198f4af-21f4-4811-8b00-a7c29f956f61" />
-
 
 
 ## Features
