@@ -87,4 +87,4 @@ MIT License — See [LICENSE](LICENSE) for details.
 
 ## Credits
 
-Created with p5.js. Inspired by asemic writing, redacted documents, and generative typography.
+Created with Claude Code & p5.js. Inspired by asemic writing, redacted documents, and generative typography.
