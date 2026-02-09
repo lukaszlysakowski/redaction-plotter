@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redaction - Plotter Version</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+    button {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #444; }
+    button.primary { background: #A93B2A; border-color: #A93B2A; }
+    button.primary:hover { background: #8a2f22; }
+    button.secondary { background: #2A5A93; border-color: #2A5A93; }
+    button.secondary:hover { background: #224a7a; }
+    .settings {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      max-width: 1400px;
+    }
+    .settings-group {
+      background: #252525;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .settings-group.image-mode {
+      border-color: #2A5A93;
+    }
+    .settings-group h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .settings-group.image-mode h3 {
+      color: #5A8AC3;
+    }
+    .settings-group-inner {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .setting {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .setting label {
+      font-size: 12px;
+      color: #888;
+    }
+    .setting input, .setting select {
+      background: #333;
+      border: 1px solid #555;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      width: 120px;
+    }
+    .setting input[type="range"] {
+      width: 100px;
+    }
+    .setting input[type="checkbox"] {
+      width: auto;
+    }
+    .range-value {
+      font-size: 11px;
+      color: #666;
+      text-align: right;
+    }
+    .checkbox-row {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .checkbox-row label {
+      order: 2;
+    }
+    .checkbox-row input {
+      order: 1;
+    }
+    #canvas-container {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .info {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    .controls .divider {
+      width: 1px;
+      height: 24px;
+      background: #444;
+      margin: 0 10px;
+    }
+    .controls select {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    .divider {
+      width: 1px;
+      background: #444;
+      margin: 0 5px;
+    }
+    .upload-label {
+      display: inline-block;
+      background: #2A5A93;
+      color: #fff;
+      border: 1px solid #2A5A93;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .upload-label:hover { background: #224a7a; }
+    #imageUpload {
+      display: none;
+    }
+    .mode-indicator {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .mode-indicator.generative {
+      background: #3d2a2a;
+      color: #A93B2A;
+    }
+    .mode-indicator.image {
+      background: #2a3d5a;
+      color: #5A8AC3;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <span class="mode-indicator generative" id="modeIndicator">GENERATIVE MODE</span>
+    <span class="divider"></span>
+    <button class="primary" onclick="regenerate()">Regenerate</button>
+    <button onclick="exportSVG()">Export SVG</button>
+    <button onclick="exportPNG()">Export PNG</button>
+    <span class="divider"></span>
+    <button onclick="saveSettings()">Save Settings</button>
+    <select id="savedPresets" onchange="loadSettings()">
+      <option value="">Load Preset...</option>
+    </select>
+    <button onclick="deleteSettings()">Delete</button>
+    <span class="divider"></span>
+    <button onclick="exportPresets()">Export Presets</button>
+    <button onclick="document.getElementById('importFile').click()">Import Presets</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importPresets(event)">
+  </div>
+  
+  <div class="settings">
+    <!-- IMAGE TO GRID PANEL -->
+    <div class="settings-group image-mode">
+      <h3>Image to Low-Res Grid</h3>
+      <div class="settings-group-inner">
+        <div class="setting">
+          <label>Upload Image</label>
+          <label class="upload-label" for="imageUpload">Choose File</label>
+          <input type="file" id="imageUpload" accept="image/*">
+        </div>
+        <div class="setting">
+          <label>Grid Size</label>
+          <input type="range" id="gridSize" min="8" max="64" value="24" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
+          <span class="range-value" id="gridSize-val">24</span>
+        </div>
+        <div class="setting">
+          <label>Mark Style</label>
+          <select id="markStyle" onchange="if(uploadedImage) processUploadedImage();">
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="cross">Cross</option>
+            <option value="rings">Concentric Rings</option>
+            <option value="lines">Line Density</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Mark Scale</label>
+          <input type="range" id="markScale" min="20" max="100" value="80" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
+          <span class="range-value" id="markScale-val">80</span>
+        </div>
+        <div class="setting">
+          <label>Threshold</label>
+          <input type="range" id="threshold" min="0" max="50" value="5" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
+          <span class="range-value" id="threshold-val">5</span>
+        </div>
+        <div class="setting checkbox-row">
+          <input type="checkbox" id="invertImage" onchange="if(uploadedImage) processUploadedImage();">
+          <label>Invert</label>
+        </div>
+        <div class="setting">
+          <button class="secondary" onclick="clearImage()">Clear Image</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settings-group">
+      <h3>Composition (regenerates)</h3>
+      <div class="settings-group-inner">
+        <div class="setting">
+          <label>Version (1-7)</label>
+          <input type="number" id="version" min="1" max="7" value="3" onchange="regenerate()">
+        </div>
+        <div class="divider"></div>
+        <div class="setting checkbox-row">
+          <input type="checkbox" id="textLayout" onchange="regenerate()">
+          <label>Text-like Layout</label>
+        </div>
+        <div class="setting">
+          <label>Text Mode</label>
+          <select id="textMode" onchange="regenerate()">
+            <option value="regular">Regular</option>
+            <option value="fibSpacing">Fibonacci Spacing</option>
+            <option value="fibWords">Fibonacci Words</option>
+            <option value="fibBoth">Fibonacci Both</option>
+          </select>
+        </div>
+        <div class="setting checkbox-row">
+          <input type="checkbox" id="spiralLayout" onchange="regenerate()">
+          <label>Fibonacci Spiral</label>
+        </div>
+        <div class="setting checkbox-row">
+          <input type="checkbox" id="autoFitHeight" onchange="regenerate()">
+          <label>Auto-fit Height</label>
+        </div>
+        <div class="setting">
+          <label>Line Height</label>
+          <input type="range" id="lineHeight" min="40" max="150" value="80" oninput="updateRangeDisplay(this); regenerate()">
+          <span class="range-value" id="lineHeight-val">80</span>
+        </div>
+        <div class="setting">
+          <label>Word Spacing</label>
+          <input type="range" id="wordSpacing" min="20" max="100" value="50" oninput="updateRangeDisplay(this); regenerate()">
+          <span class="range-value" id="wordSpacing-val">50</span>
+        </div>
+        <div class="setting">
+          <label>Baseline Jitter</label>
+          <input type="range" id="baselineJitter" min="0" max="20" value="5" oninput="updateRangeDisplay(this); regenerate()">
+          <span class="range-value" id="baselineJitter-val">5</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settings-group">
+      <h3>Display (preserves shapes)</h3>
+      <div class="settings-group-inner">
+        <div class="setting">
+          <label>Fill Style</label>
+          <select id="fillStyle" onchange="renderOnly()">
+            <option value="hatch">Hatching</option>
+            <option value="cross">Cross-hatch</option>
+            <option value="stipple">Stippling</option>
+            <option value="contour">Contour</option>
+            <option value="scribble">Scribble</option>
+            <option value="none">Outline Only</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Fill Density</label>
+          <input type="range" id="fillDensity" min="2" max="20" value="6" oninput="updateRangeDisplay(this); renderOnly()">
+          <span class="range-value" id="fillDensity-val">6</span>
+        </div>
+        <div class="setting">
+          <label>Hatch Angle</label>
+          <select id="hatchAngle" onchange="renderOnly()">
+            <option value="random">Random per shape</option>
+            <option value="uniform">Uniform (45°)</option>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+        </div>
+        <div class="setting checkbox-row">
+          <input type="checkbox" id="hideOutline" onchange="renderOnly()">
+          <label>Hide Outline</label>
+        </div>
+        <div class="divider"></div>
+        <div class="setting">
+          <label>Stroke Weight</label>
+          <input type="range" id="strokeW" min="0.3" max="3" step="0.1" value="1" oninput="updateRangeDisplay(this); renderOnly()">
+          <span class="range-value" id="strokeW-val">1</span>
+        </div>
+        <div class="setting">
+          <label>Stroke Color</label>
+          <select id="strokeColor" onchange="renderOnly()">
+            <option value="black">Black</option>
+            <option value="greyscale">Greyscale</option>
+            <option value="colorz">Colorz Palette</option>
+            <option value="colors">Colors Palette</option>
+            <option value="colorsz">Colorsz Palette</option>
+            <option value="multi">Multi-color</option>
+            <option value="white">White</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Background</label>
+          <select id="bgColor" onchange="renderOnly()">
+            <option value="#fff">White</option>
+            <option value="#EBE6E6">Warm Gray</option>
+            <option value="#F7E6D4">Cream</option>
+            <option value="#D4E9F9">Light Blue</option>
+            <option value="#A93B2A">Crimson</option>
+            <option value="#0a0a0a">Black</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="canvas-container"></div>
+  
+  <div class="info">
+    Click canvas to regenerate • Seed: <span id="seedDisplay">-</span>
+  </div>
+
+<script>
+// Global variables
+let svgContent = [];
+let allShapes = [];
+let shapeColors = [];
+let shapeGreys = [];
+let shapeColorz = [];
+let shapeColorsArr = [];
+let shapeColorsz = [];
+let shapeAngles = [];
+let shapeScribbleSeeds = [];
+let currentSeed;
+let shapesGenerated = false;
+
+// Image mode variables
+let uploadedImage = null;
+let imageMode = false;
+
+// Settings
+let space = [3, 5, 8, 12, 15, 18, 21, 24, 28, 32, 40];
+
+// Randomization variables
+let asemic12, cnt2, cnt6, cnt7, cnt14, cnt20, cnt135, cnt150, cnt190;
+let glyphcount, size, sizea, sizeb;
+
+function setup() {
+  let canvas = createCanvas(1340, 1680);
+  canvas.parent('canvas-container');
+  currentSeed = Date.now();
+  noLoop();
+  pixelDensity(1);
+  
+  document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
+  updatePresetDropdown();
+  updateSeedDisplay();
+  
+  // Setup image upload handler
+  document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+  
+  generateShapes();
+  renderShapes();
+}
+
+function handleImageUpload(event) {
+  let file = event.target.files[0];
+  if (!file) return;
+  
+  let reader = new FileReader();
+  reader.onload = function(e) {
+    let img = new Image();
+    img.onload = function() {
+      // Store the image data
+      let tempCanvas = document.createElement('canvas');
+      tempCanvas.width = img.width;
+      tempCanvas.height = img.height;
+      let ctx = tempCanvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      
+      uploadedImage = {
+        width: img.width,
+        height: img.height,
+        pixels: ctx.getImageData(0, 0, img.width, img.height).data
+      };
+      
+      console.log('Image loaded:', uploadedImage.width, 'x', uploadedImage.height);
+      
+      // Switch to image mode
+      imageMode = true;
+      updateModeIndicator();
+      processUploadedImage();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processUploadedImage() {
+  if (!uploadedImage) return;
+  
+  let gridSize = parseInt(document.getElementById('gridSize').value);
+  let markScale = parseInt(document.getElementById('markScale').value) / 100;
+  let threshold = parseInt(document.getElementById('threshold').value) / 100;
+  let invert = document.getElementById('invertImage').checked;
+  
+  // Clear existing shapes
+  allShapes = [];
+  shapeColors = [];
+  shapeGreys = [];
+  shapeColorz = [];
+  shapeColorsArr = [];
+  shapeColorsz = [];
+  shapeAngles = [];
+  shapeScribbleSeeds = [];
+  
+  // Calculate grid dimensions maintaining aspect ratio
+  let imgAspect = uploadedImage.width / uploadedImage.height;
+  let canvasW = 1340;
+  let canvasH = 1680;
+  
+  let drawWidth, drawHeight, offsetX, offsetY;
+  
+  if (imgAspect > canvasW / canvasH) {
+    // Image is wider
+    drawWidth = canvasW - 100;
+    drawHeight = drawWidth / imgAspect;
+    offsetX = 50;
+    offsetY = (canvasH - drawHeight) / 2;
+  } else {
+    // Image is taller
+    drawHeight = canvasH - 100;
+    drawWidth = drawHeight * imgAspect;
+    offsetX = (canvasW - drawWidth) / 2;
+    offsetY = 50;
+  }
+  
+  let cols = floor(drawWidth / gridSize);
+  let rows = floor(drawHeight / gridSize);
+  
+  // Recenter based on actual grid size
+  let actualWidth = cols * gridSize;
+  let actualHeight = rows * gridSize;
+  offsetX = (canvasW - actualWidth) / 2;
+  offsetY = (canvasH - actualHeight) / 2;
+  
+  // Color palettes for consistency
+  let colors = ["#000", "#333", "#666", "#A93B2A", "#3D4460"];
+  let greys = ["#000", "#1a1a1a", "#333", "#4d4d4d", "#666", "#808080", "#999", "#b3b3b3"];
+  let colors4 = ["#000", "#333", "#666", "#A93B2A", "#000", "#efefef"];
+  let colors5 = ["#000", "#000", "#000", "#fff", "#fff", "#fff", "#0a0a0a", "#A93B2A"];
+  let colorzPalettes = [colors4, colors5];
+  let colorsPalettes = [colors4, colors5];
+  let colorszPalettes = [colors4, colors5];
+  
+  randomSeed(currentSeed);
+  
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      // Sample from center of each cell
+      let sampleX = floor(map(col + 0.5, 0, cols, 0, uploadedImage.width));
+      let sampleY = floor(map(row + 0.5, 0, rows, 0, uploadedImage.height));
+      
+      sampleX = constrain(sampleX, 0, uploadedImage.width - 1);
+      sampleY = constrain(sampleY, 0, uploadedImage.height - 1);
+      
+      // Get pixel brightness
+      let idx = (sampleY * uploadedImage.width + sampleX) * 4;
+      let r = uploadedImage.pixels[idx];
+      let g = uploadedImage.pixels[idx + 1];
+      let b = uploadedImage.pixels[idx + 2];
+      let brightness = (r + g + b) / 3 / 255;
+      
+      if (invert) brightness = 1 - brightness;
+      
+      // Dark = large mark, light = small/no mark
+      let value = 1 - brightness;
+      
+      // Skip if below threshold
+      if (value <= threshold) continue;
+      
+      let cx = offsetX + col * gridSize + gridSize / 2;
+      let cy = offsetY + row * gridSize + gridSize / 2;
+      let cellValue = value * gridSize * markScale;
+      
+      // Create shape vertices based on mark style
+      let markStyleVal = document.getElementById('markStyle').value;
+      let vertices = createMarkVertices(cx, cy, cellValue, gridSize, markScale, markStyleVal);
+      
+      if (vertices && vertices.length > 0) {
+        allShapes.push({ vertices, markType: markStyleVal, cellValue: cellValue });
+        
+        // Assign colors and properties
+        shapeColors.push(random(colors));
+        shapeGreys.push(random(greys));
+        shapeColorz.push(random(random(colorzPalettes)));
+        shapeColorsArr.push(random(random(colorsPalettes)));
+        shapeColorsz.push(random(random(colorszPalettes)));
+        shapeAngles.push(random(-60, 60));
+        shapeScribbleSeeds.push(floor(random(100000)));
+      }
+    }
+  }
+  
+  shapesGenerated = true;
+  console.log('Generated', allShapes.length, 'shapes from image');
+  
+  renderShapes();
+}
+
+function createMarkVertices(cx, cy, size, gridSize, markScale, style) {
+  if (size < 1) return null;
+  
+  switch(style) {
+    case 'circle':
+      // Approximate circle with polygon
+      let circleVerts = [];
+      let segments = 12;
+      let radius = size / 2;
+      for (let i = 0; i < segments; i++) {
+        let angle = (i / segments) * TWO_PI;
+        circleVerts.push({
+          x: cx + cos(angle) * radius,
+          y: cy + sin(angle) * radius
+        });
+      }
+      return circleVerts;
+      
+    case 'square':
+      let half = size * 0.45;
+      return [
+        { x: cx - half, y: cy - half },
+        { x: cx + half, y: cy - half },
+        { x: cx + half, y: cy + half },
+        { x: cx - half, y: cy + half }
+      ];
+      
+    case 'cross':
+      // Cross represented as a thick + shape (polygon)
+      let cs = gridSize * markScale * 0.4;
+      let thick = cs * 0.3;
+      return [
+        { x: cx - thick, y: cy - cs },
+        { x: cx + thick, y: cy - cs },
+        { x: cx + thick, y: cy - thick },
+        { x: cx + cs, y: cy - thick },
+        { x: cx + cs, y: cy + thick },
+        { x: cx + thick, y: cy + thick },
+        { x: cx + thick, y: cy + cs },
+        { x: cx - thick, y: cy + cs },
+        { x: cx - thick, y: cy + thick },
+        { x: cx - cs, y: cy + thick },
+        { x: cx - cs, y: cy - thick },
+        { x: cx - thick, y: cy - thick }
+      ];
+      
+    case 'rings':
+      // For rings, we'll use the largest circle and let fill style create internal detail
+      let ringRadius = size / 2;
+      let ringVerts = [];
+      let ringSegments = 16;
+      for (let i = 0; i < ringSegments; i++) {
+        let angle = (i / ringSegments) * TWO_PI;
+        ringVerts.push({
+          x: cx + cos(angle) * ringRadius,
+          y: cy + sin(angle) * ringRadius
+        });
+      }
+      return ringVerts;
+      
+    case 'lines':
+      // Horizontal line block - represented as thin rectangle
+      let lineCount = floor(map(size, 0, gridSize * markScale, 0, 4));
+      if (lineCount < 1) return null;
+      let blockH = lineCount * 4;
+      let blockW = gridSize * markScale * 0.8;
+      return [
+        { x: cx - blockW/2, y: cy - blockH/2 },
+        { x: cx + blockW/2, y: cy - blockH/2 },
+        { x: cx + blockW/2, y: cy + blockH/2 },
+        { x: cx - blockW/2, y: cy + blockH/2 }
+      ];
+      
+    default:
+      return null;
+  }
+}
+
+function clearImage() {
+  uploadedImage = null;
+  imageMode = false;
+  updateModeIndicator();
+  
+  // Reset file input
+  document.getElementById('imageUpload').value = '';
+  
+  // Regenerate with generative mode
+  regenerate();
+}
+
+function updateModeIndicator() {
+  let indicator = document.getElementById('modeIndicator');
+  if (imageMode) {
+    indicator.textContent = 'IMAGE MODE';
+    indicator.className = 'mode-indicator image';
+  } else {
+    indicator.textContent = 'GENERATIVE MODE';
+    indicator.className = 'mode-indicator generative';
+  }
+}
+
+function updateRangeDisplay(el) {
+  let display = document.getElementById(el.id + '-val');
+  if (display) display.textContent = el.value;
+}
+
+// ============== SHAPE GENERATION ==============
+
+function generateShapes() {
+  // If in image mode, process the image instead
+  if (imageMode && uploadedImage) {
+    processUploadedImage();
+    return;
+  }
+  
+  randomSeed(currentSeed);
+  
+  allShapes = [];
+  shapeColors = [];
+  shapeGreys = [];
+  shapeColorz = [];
+  shapeColorsArr = [];
+  shapeColorsz = [];
+  shapeAngles = [];
+  shapeScribbleSeeds = [];
+  
+  let version = parseInt(document.getElementById('version').value);
+  let useTextLayout = document.getElementById('textLayout').checked;
+  let useSpiralLayout = document.getElementById('spiralLayout').checked;
+  
+  // Initialize random variables
+  asemic12 = random(6, 12);
+  cnt2 = random(1, 2);
+  cnt6 = random(1, 6);
+  cnt7 = random(4, 7);
+  cnt14 = random(6, 14);
+  cnt20 = random(1, 20);
+  cnt135 = random(75, 135);
+  cnt150 = random(75, 150);
+  cnt190 = random(120, 190);
+  glyphcount = random(1.8, 8.4);
+  size = random(0.2, 2.2);
+  sizea = random(0.4, 4.8);
+  sizeb = random(5.0, 8.8);
+  
+  let colors = ["#000", "#333", "#666", "#A93B2A", "#3D4460"];
+  let greys = ["#000", "#1a1a1a", "#333", "#4d4d4d", "#666", "#808080", "#999", "#b3b3b3"];
+  
+  // Color palettes from original Redaction code
+  let colors4 = ["#000", "#333", "#666", "#A93B2A", "#000", "#efefef"];
+  let colors5 = ["#000", "#000", "#000", "#fff", "#fff", "#fff", "#0a0a0a", "#A93B2A"];
+  let colors6 = ["#000", "#000", "#000", "#000", "#0a0a0a", "#A93B2A"];
+  let colors7 = ["#fff", "#fff", "#fff", "#fff", "#efefef", "#A93B2A"];
+  let colors8 = ["#000", "#000", "#000", "#000", "#0a0a0a", "#0a0a0a", "#1a1a1a"];
+  let colors9 = ["#fff", "#fff", "#fff", "#fff", "#efefef"];
+  let colors10 = ["#000", "#000", "#000", "#0a0a0a", "#fff"];
+  let colors11 = ["#fff", "#fff", "#fff", "#0a0a0a", "#0a0a0a", "#0a0a0a", "#cae5fa"];
+  let colors12 = ["#fff", "#fff", "#fff", "#0a0a0a", "#0a0a0a", "#0a0a0a", "#EDDAC6"];
+  let colors13 = ["#D4E9F9", "#000", "#000", "#000", "#000"];
+  let colors14 = ["#0a0a0a", "#0a0a0a", "#0a0a0a", "#A93B2A", "#0a0a0a", "#0a0a0a", "#D4E9F9"];
+  
+  // Palette collections
+  let colorzPalettes = [colors4, colors5, colors6, colors7, colors9, colors10, colors11, colors14];
+  let colorsPalettes = [colors4, colors5, colors6, colors7, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
+  let colorszPalettes = [colors4, colors5, colors6, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
+  
+  if (useSpiralLayout) {
+    // Generate original shapes first, then reposition along spiral
+    generateOriginalLayout(version);
+    applySpiralTransform();
+  } else if (useTextLayout) {
+    generateTextLayout(version);
+  } else {
+    generateOriginalLayout(version);
+  }
+  
+  // Assign colors, angles, and scribble seeds for consistency
+  for (let i = 0; i < allShapes.length; i++) {
+    shapeColors.push(random(colors));
+    shapeGreys.push(random(greys));
+    // Pick a random palette then a random color from it
+    shapeColorz.push(random(random(colorzPalettes)));
+    shapeColorsArr.push(random(random(colorsPalettes)));
+    shapeColorsz.push(random(random(colorszPalettes)));
+    shapeAngles.push(random(-60, 60));
+    shapeScribbleSeeds.push(floor(random(100000)));
+  }
+  
+  shapesGenerated = true;
+  let layoutType = useSpiralLayout ? 'spiral layout' : (useTextLayout ? 'text layout' : 'original layout');
+  console.log(`Generated ${allShapes.length} shapes (${layoutType})`);
+}
+
+function generateTextLayout(version) {
+  let lineHeight = parseInt(document.getElementById('lineHeight').value);
+  let wordSpacing = parseInt(document.getElementById('wordSpacing').value);
+  let baselineJitter = parseInt(document.getElementById('baselineJitter').value);
+  let textMode = document.getElementById('textMode').value;
+  
+  // Fibonacci sequence for spacing and word lengths
+  let fibonacci = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
+  let fibIndex = 0;
+  let fibWordIndex = 0;
+  
+  // Margins
+  let marginLeft = 80;
+  let marginRight = 80;
+  let marginTop = 100;
+  let marginBottom = 100;
+  
+  let pageWidth = width - marginLeft - marginRight;
+  let pageHeight = height - marginTop - marginBottom;
+  
+  // Glyph size ranges based on version
+  let glyphWidth, glyphHeight;
+  switch(version) {
+    case 7: glyphWidth = [20, 45]; glyphHeight = [30, 55]; break;
+    case 6: glyphWidth = [30, 60]; glyphHeight = [40, 70]; break;
+    case 5: glyphWidth = [40, 80]; glyphHeight = [50, 90]; break;
+    case 4: glyphWidth = [35, 70]; glyphHeight = [45, 80]; break;
+    case 3: glyphWidth = [25, 55]; glyphHeight = [35, 65]; break;
+    case 2: glyphWidth = [20, 45]; glyphHeight = [30, 55]; break;
+    default: glyphWidth = [20, 40]; glyphHeight = [30, 50]; break;
+  }
+  
+  let y = marginTop;
+  let lineIndex = 0;
+  
+  while (y < height - marginBottom - glyphHeight[1]) {
+    let x = marginLeft;
+    let baseline = y + glyphHeight[1]; // baseline at bottom of line
+    
+    // Generate words for this line
+    while (x < width - marginRight - glyphWidth[1]) {
+      // Word length based on mode
+      let wordLength;
+      if (textMode === 'fibWords' || textMode === 'fibBoth') {
+        // Fibonacci word lengths: 1, 1, 2, 3, 5, 8, then repeat
+        wordLength = fibonacci[fibWordIndex % 6];
+        fibWordIndex++;
+      } else {
+        // Regular: 2-6 glyphs
+        wordLength = floor(random(2, 7));
+      }
+      
+      let wordStart = x;
+      
+      for (let g = 0; g < wordLength; g++) {
+        if (x >= width - marginRight - glyphWidth[1]) break;
+        
+        let gw = random(glyphWidth[0], glyphWidth[1]);
+        let gh = random(glyphHeight[0], glyphHeight[1]);
+        
+        // Baseline jitter
+        let jitter = random(-baselineJitter, baselineJitter);
+        
+        // Create glyph aligned to baseline
+        let glyphTop = baseline - gh + jitter;
+        let glyphBottom = baseline + jitter;
+        
+        // Add ascenders/descenders occasionally
+        if (random() < 0.15) {
+          // Ascender
+          glyphTop -= random(10, 25);
+        }
+        if (random() < 0.1) {
+          // Descender
+          glyphBottom += random(8, 20);
+        }
+        
+        let vertices = createQuadVerticesTextStyle(x, glyphTop, gw, glyphBottom - glyphTop);
+        allShapes.push({ vertices, isGlyph: true });
+        
+        // Letter spacing - Fibonacci or regular
+        let letterSpace;
+        if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
+          letterSpace = fibonacci[g % fibonacci.length] * 2;
+        } else {
+          letterSpace = random(3, 10);
+        }
+        x += gw + letterSpace;
+      }
+      
+      // Word spacing - Fibonacci or regular
+      let wSpace;
+      if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
+        wSpace = fibonacci[(fibWordIndex + 3) % 7] * 8;
+      } else {
+        wSpace = wordSpacing + random(-10, 20);
+      }
+      x += wSpace;
+      
+      // Occasionally add extra space (like a paragraph indent or gap)
+      if (random() < 0.08) {
+        x += wordSpacing * 2;
+      }
+    }
+    
+    // Line height - Fibonacci or regular
+    let currentLineHeight;
+    if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
+      // Scale Fibonacci numbers to reasonable line heights
+      currentLineHeight = fibonacci[(lineIndex % 6) + 2] * 4 + 20;
+    } else {
+      currentLineHeight = lineHeight + random(-5, 10);
+    }
+    
+    y += currentLineHeight;
+    lineIndex++;
+  }
+}
+
+function createQuadVerticesTextStyle(x, y, w, h) {
+  // Create slightly irregular quad for more organic look
+  let skew = random(-5, 5);
+  let taper = random(0.85, 1.0);
+  
+  return [
+    { x: x + random(-2, 2), y: y + random(-2, 2) },
+    { x: x + w * taper + skew + random(-2, 2), y: y + random(-2, 2) },
+    { x: x + w + skew + random(-3, 3), y: y + h + random(-2, 2) },
+    { x: x + random(-2, 2), y: y + h + random(-2, 2) }
+  ];
+}
+
+function applySpiralTransform() {
+  // Golden angle for phyllotaxis spiral
+  let goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5 degrees in radians
+  
+  // Center of canvas
+  let centerX = width / 2;
+  let centerY = height / 2;
+  
+  // Get spacing from controls
+  let wordSpacing = parseInt(document.getElementById('wordSpacing').value);
+  let spacingMult = map(wordSpacing, 20, 100, 4, 10);
+  
+  // Reposition each shape along the spiral
+  for (let i = 0; i < allShapes.length; i++) {
+    let shape = allShapes[i];
+    
+    // Calculate spiral position for this shape
+    let angle = i * goldenAngle;
+    let radius = spacingMult * Math.sqrt(i);
+    
+    // New center position on spiral
+    let spiralX = centerX + radius * Math.cos(angle);
+    let spiralY = centerY + radius * Math.sin(angle);
+    
+    // Calculate current shape center
+    let currentCenterX = 0;
+    let currentCenterY = 0;
+    for (let v of shape.vertices) {
+      currentCenterX += v.x;
+      currentCenterY += v.y;
+    }
+    currentCenterX /= shape.vertices.length;
+    currentCenterY /= shape.vertices.length;
+    
+    // Calculate rotation to follow spiral tangent
+    let tangentAngle = angle + Math.PI / 2;
+    let cos = Math.cos(tangentAngle);
+    let sin = Math.sin(tangentAngle);
+    
+    // Transform each vertex: translate to origin, rotate, translate to spiral position
+    for (let v of shape.vertices) {
+      // Translate to origin (relative to shape center)
+      let relX = v.x - currentCenterX;
+      let relY = v.y - currentCenterY;
+      
+      // Rotate around origin
+      let rotX = relX * cos - relY * sin;
+      let rotY = relX * sin + relY * cos;
+      
+      // Translate to spiral position
+      v.x = spiralX + rotX;
+      v.y = spiralY + rotY;
+    }
+  }
+}
+
+function generateOriginalLayout(version) {
+  // Get override values from controls
+  let lineHeightMult = parseInt(document.getElementById('lineHeight').value) / 80; // normalize around default of 80
+  let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50; // normalize around default of 50
+  let baselineJitter = parseInt(document.getElementById('baselineJitter').value);
+  
+  let score = version;
+  
+  if (score >= 7) {
+    for (let rowY = -40; rowY <= 1480; rowY += (cnt14) * cnt20 / size * lineHeightMult) {
+      generateShapes7(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 6) {
+    for (let rowY = 60; rowY <= 1700; rowY += cnt7 * 30 * lineHeightMult) {
+      generateShapes6(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 5) {
+    for (let rowY = 2; rowY <= 1580; rowY += cnt2 * cnt190 / sizeb * lineHeightMult) {
+      generateShapes5(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 4) {
+    for (let rowY = 2; rowY <= 1580; rowY += cnt2 * cnt190 / sizea * lineHeightMult) {
+      generateShapes4(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 3) {
+    for (let rowY = 0; rowY <= 1400; rowY += cnt2 * cnt190 / size * lineHeightMult) {
+      generateShapes3(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 2) {
+    for (let rowY = -40; rowY <= 1480; rowY += cnt14 * cnt20 / size * lineHeightMult) {
+      generateShapes2(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else {
+    for (let rowY = 10; rowY <= 1520; rowY += cnt2 * cnt135 / size * lineHeightMult) {
+      generateShapes1(rowY, wordSpacingMult, baselineJitter);
+    }
+  }
+}
+
+// Original shape generators
+function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
+  // Variable row length - each row ends at a different point
+  let rowEndX = random(600, 1340);
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 250 / size; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        random(quadX - 200 / size, quadX - 100 / size), random(rowY + 90 / size, rowY + 100 / size) + jitter,
+        random(quadX - 20 / size, quadX - 120 / size), random(rowY + random(90, 120) / size, rowY + 110 / size) + jitter,
+        random(quadX - random(50, 100) / size, quadX - random(40, 210) / size), random(rowY + 200 / size, rowY + 200 / size) + jitter,
+        random(quadX - 200 / size, quadX - 120 / size), random(rowY + 200 / size, rowY + 200 / size) + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes6(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  // First pass: generate shapes for this row into a temporary array
+  let rowShapes = [];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  
+  for (let quadX = 0; quadX <= 800; quadX += asemic12 * random(4, 12) * wordSpacingMult) {
+    let vertices = createQuadVertices(
+      quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+      quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+      quadX - random(25, 210) / size, rowY + 200 / size + jitter,
+      quadX - random(100, 200) / size, rowY + 200 / size + jitter
+    );
+    
+    // Track bounds
+    for (let v of vertices) {
+      if (v.x < minX) minX = v.x;
+      if (v.x > maxX) maxX = v.x;
+    }
+    
+    rowShapes.push({ vertices });
+  }
+  
+  // Calculate centering offset
+  let rowWidth = maxX - minX;
+  let canvasCenter = 1340 / 2;
+  let rowCenter = minX + rowWidth / 2;
+  let offsetX = canvasCenter - rowCenter;
+  
+  // Apply offset and add to allShapes
+  for (let shape of rowShapes) {
+    for (let v of shape.vertices) {
+      v.x += offsetX;
+    }
+    allShapes.push(shape);
+  }
+}
+
+function generateShapes5(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 620 / sizeb; quadX <= 1340; quadX += cnt2 * cnt190 / sizeb * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / sizeb, rowY + random(180, 200) / sizeb + jitter,
+        quadX - random(80, 240) / sizeb, rowY + random(120, 240) / sizeb + jitter,
+        quadX - random(80, 420) / sizeb, rowY + 400 / sizeb + jitter,
+        quadX - random(220, 400) / sizeb, rowY + 400 / sizeb + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes4(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 620 / sizea; quadX <= 1340; quadX += cnt2 * cnt190 / sizea * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / sizea, rowY + random(180, 200) / sizea + jitter,
+        quadX - random(80, 240) / sizea, rowY + random(120, 240) / sizea + jitter,
+        quadX - random(80, 420) / sizea, rowY + 400 / sizea + jitter,
+        quadX - random(220, 400) / sizea, rowY + 400 / sizea + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes3(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 420 / size; quadX <= 1410; quadX += 90 * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / size, rowY + random(180, 200) / size + jitter,
+        quadX - random(80, 240) / size, rowY + random(120, 240) / size + jitter,
+        quadX - random(80, 420) / size, rowY + 400 / size + jitter,
+        quadX - random(220, 400) / size, rowY + 400 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes2(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 250 / size; quadX <= 1340; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+        quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+        quadX - random(40, 210) / size, rowY + 200 / size + jitter,
+        quadX - random(120, 200) / size, rowY + 200 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes1(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 230 / size; quadX <= 1340; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+        quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+        quadX - random(40, 210) / size, rowY + 200 / size + jitter,
+        quadX - random(120, 200) / size, rowY + 200 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function createQuadVertices(x1, y1, x2, y2, x3, y3, x4, y4) {
+  return [
+    { x: x1, y: y1 },
+    { x: x2, y: y2 },
+    { x: x3, y: y3 },
+    { x: x4, y: y4 }
+  ];
+}
+
+// ============== RENDERING ==============
+
+function renderShapes() {
+  if (!shapesGenerated) return;
+  
+  let bg = document.getElementById('bgColor').value;
+  let fillStyle = document.getElementById('fillStyle').value;
+  let fillDensity = parseFloat(document.getElementById('fillDensity').value);
+  let hatchAngle = document.getElementById('hatchAngle').value;
+  let sw = parseFloat(document.getElementById('strokeW').value);
+  let strokeColorMode = document.getElementById('strokeColor').value;
+  let hideOutline = document.getElementById('hideOutline').checked;
+  
+  background(bg);
+  svgContent = [];
+  
+  strokeWeight(sw);
+  noFill();
+  
+  for (let i = 0; i < allShapes.length; i++) {
+    let shape = allShapes[i];
+    
+    let col = "#000";
+    if (strokeColorMode === "multi") {
+      col = shapeColors[i];
+    } else if (strokeColorMode === "greyscale") {
+      col = shapeGreys[i];
+    } else if (strokeColorMode === "colorz") {
+      col = shapeColorz[i];
+    } else if (strokeColorMode === "colors") {
+      col = shapeColorsArr[i];
+    } else if (strokeColorMode === "colorsz") {
+      col = shapeColorsz[i];
+    } else if (strokeColorMode === "white") {
+      col = "#fff";
+    }
+    
+    stroke(col);
+    
+    // Draw outline (unless hidden)
+    if (!hideOutline) {
+      beginShape();
+      for (let pt of shape.vertices) {
+        vertex(pt.x, pt.y);
+      }
+      endShape(CLOSE);
+      
+      svgContent.push({
+        type: 'polygon',
+        points: shape.vertices,
+        color: col,
+        strokeWidth: sw
+      });
+    }
+    
+    // Generate fill based on style
+    let fillElements = [];
+    
+    switch (fillStyle) {
+      case 'hatch':
+        fillElements = generateHatching(shape.vertices, fillDensity, hatchAngle, shapeAngles[i]);
+        break;
+      case 'cross':
+        fillElements = generateCrossHatch(shape.vertices, fillDensity, hatchAngle, shapeAngles[i]);
+        break;
+      case 'stipple':
+        fillElements = generateStippling(shape.vertices, fillDensity, shapeScribbleSeeds[i]);
+        break;
+      case 'contour':
+        fillElements = generateContourFill(shape.vertices, fillDensity);
+        break;
+      case 'scribble':
+        fillElements = generateScribbleFill(shape.vertices, fillDensity, shapeScribbleSeeds[i]);
+        break;
+      case 'none':
+      default:
+        break;
+    }
+    
+    // Draw fill elements
+    for (let elem of fillElements) {
+      if (elem.type === 'line') {
+        line(elem.x1, elem.y1, elem.x2, elem.y2);
+        svgContent.push({ ...elem, color: col, strokeWidth: sw });
+      } else if (elem.type === 'point') {
+        point(elem.x, elem.y);
+        svgContent.push({ type: 'circle', cx: elem.x, cy: elem.y, r: sw/2, color: col, strokeWidth: sw });
+      }
+    }
+  }
+}
+
+// ============== FILL STYLES ==============
+
+// Standard parallel hatching
+function generateHatching(vertices, density, angleMode, storedAngle) {
+  let lines = [];
+  let angle = getAngle(angleMode, storedAngle);
+  
+  let { minX, maxX, minY, maxY, diagonal, centerX, centerY } = getBounds(vertices);
+  let rad = radians(angle);
+  
+  for (let offset = -diagonal; offset <= diagonal; offset += density) {
+    let x1 = centerX + offset * cos(rad + HALF_PI) - diagonal * cos(rad);
+    let y1 = centerY + offset * sin(rad + HALF_PI) - diagonal * sin(rad);
+    let x2 = centerX + offset * cos(rad + HALF_PI) + diagonal * cos(rad);
+    let y2 = centerY + offset * sin(rad + HALF_PI) + diagonal * sin(rad);
+    
+    let clipped = clipLineToPolygon(x1, y1, x2, y2, vertices);
+    if (clipped) {
+      lines.push({ type: 'line', ...clipped });
+    }
+  }
+  
+  return lines;
+}
+
+// Cross-hatching (two directions)
+function generateCrossHatch(vertices, density, angleMode, storedAngle) {
+  let lines = [];
+  let angle1 = getAngle(angleMode, storedAngle);
+  let angle2 = angle1 + 90;
+  
+  let { diagonal, centerX, centerY } = getBounds(vertices);
+  
+  for (let angle of [angle1, angle2]) {
+    let rad = radians(angle);
+    
+    for (let offset = -diagonal; offset <= diagonal; offset += density) {
+      let x1 = centerX + offset * cos(rad + HALF_PI) - diagonal * cos(rad);
+      let y1 = centerY + offset * sin(rad + HALF_PI) - diagonal * sin(rad);
+      let x2 = centerX + offset * cos(rad + HALF_PI) + diagonal * cos(rad);
+      let y2 = centerY + offset * sin(rad + HALF_PI) + diagonal * sin(rad);
+      
+      let clipped = clipLineToPolygon(x1, y1, x2, y2, vertices);
+      if (clipped) {
+        lines.push({ type: 'line', ...clipped });
+      }
+    }
+  }
+  
+  return lines;
+}
+
+// Stippling (dots)
+function generateStippling(vertices, density, seed) {
+  let points = [];
+  let { minX, maxX, minY, maxY } = getBounds(vertices);
+  
+  // Density controls dot spacing
+  let spacing = density * 1.5;
+  let dotCount = ((maxX - minX) * (maxY - minY)) / (spacing * spacing);
+  
+  randomSeed(seed);
+  
+  for (let i = 0; i < dotCount; i++) {
+    let x = random(minX, maxX);
+    let y = random(minY, maxY);
+    
+    if (pointInPolygon(x, y, vertices)) {
+      points.push({ type: 'point', x, y });
+    }
+  }
+  
+  return points;
+}
+
+// Contour fill (lines following shape edges)
+function generateContourFill(vertices, density) {
+  let lines = [];
+  let levels = floor(20 / density); // More density = more contour levels
+  
+  for (let level = 1; level <= levels; level++) {
+    let t = level / (levels + 1);
+    let shrunkVertices = shrinkPolygon(vertices, t);
+    
+    if (shrunkVertices && shrunkVertices.length >= 3) {
+      // Add lines connecting consecutive vertices of shrunk polygon
+      for (let i = 0; i < shrunkVertices.length; i++) {
+        let v1 = shrunkVertices[i];
+        let v2 = shrunkVertices[(i + 1) % shrunkVertices.length];
+        lines.push({ type: 'line', x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y });
+      }
+    }
+  }
+  
+  return lines;
+}
+
+// Scribble fill (gestural marks)
+function generateScribbleFill(vertices, density, seed) {
+  let lines = [];
+  let { minX, maxX, minY, maxY, centerX, centerY } = getBounds(vertices);
+  
+  randomSeed(seed);
+  
+  let scribbleCount = floor(30 / density);
+  
+  for (let s = 0; s < scribbleCount; s++) {
+    // Start point inside polygon
+    let startX, startY;
+    let attempts = 0;
+    do {
+      startX = random(minX, maxX);
+      startY = random(minY, maxY);
+      attempts++;
+    } while (!pointInPolygon(startX, startY, vertices) && attempts < 50);
+    
+    if (attempts >= 50) continue;
+    
+    // Create a scribble path
+    let x = startX;
+    let y = startY;
+    let angle = random(TWO_PI);
+    let segmentLength = random(5, 15);
+    
+    for (let i = 0; i < random(3, 8); i++) {
+      let newX = x + cos(angle) * segmentLength;
+      let newY = y + sin(angle) * segmentLength;
+      
+      // Clip to polygon
+      if (pointInPolygon(newX, newY, vertices)) {
+        lines.push({ type: 'line', x1: x, y1: y, x2: newX, y2: newY });
+        x = newX;
+        y = newY;
+      }
+      
+      // Change direction
+      angle += random(-PI/2, PI/2);
+      segmentLength = random(5, 15);
+    }
+  }
+  
+  return lines;
+}
+
+// ============== HELPER FUNCTIONS ==============
+
+function getAngle(angleMode, storedAngle) {
+  switch (angleMode) {
+    case 'uniform': return 45;
+    case 'horizontal': return 0;
+    case 'vertical': return 90;
+    case 'random':
+    default: return storedAngle;
+  }
+}
+
+function getBounds(vertices) {
+  let minX = Math.min(...vertices.map(v => v.x));
+  let maxX = Math.max(...vertices.map(v => v.x));
+  let minY = Math.min(...vertices.map(v => v.y));
+  let maxY = Math.max(...vertices.map(v => v.y));
+  let diagonal = dist(minX, minY, maxX, maxY);
+  let centerX = (minX + maxX) / 2;
+  let centerY = (minY + maxY) / 2;
+  
+  return { minX, maxX, minY, maxY, diagonal, centerX, centerY };
+}
+
+function shrinkPolygon(vertices, t) {
+  // Simple polygon shrinking toward centroid
+  let cx = vertices.reduce((sum, v) => sum + v.x, 0) / vertices.length;
+  let cy = vertices.reduce((sum, v) => sum + v.y, 0) / vertices.length;
+  
+  let shrunk = vertices.map(v => ({
+    x: v.x + (cx - v.x) * t,
+    y: v.y + (cy - v.y) * t
+  }));
+  
+  // Check if still valid (not collapsed)
+  let area = 0;
+  for (let i = 0; i < shrunk.length; i++) {
+    let j = (i + 1) % shrunk.length;
+    area += shrunk[i].x * shrunk[j].y;
+    area -= shrunk[j].x * shrunk[i].y;
+  }
+  
+  if (Math.abs(area) < 10) return null;
+  
+  return shrunk;
+}
+
+function clipLineToPolygon(x1, y1, x2, y2, vertices) {
+  let intersections = [];
+  
+  for (let i = 0; i < vertices.length; i++) {
+    let v1 = vertices[i];
+    let v2 = vertices[(i + 1) % vertices.length];
+    
+    let intersection = lineIntersection(x1, y1, x2, y2, v1.x, v1.y, v2.x, v2.y);
+    if (intersection) {
+      intersections.push(intersection);
+    }
+  }
+  
+  if (pointInPolygon(x1, y1, vertices)) {
+    intersections.push({ x: x1, y: y1 });
+  }
+  if (pointInPolygon(x2, y2, vertices)) {
+    intersections.push({ x: x2, y: y2 });
+  }
+  
+  if (intersections.length < 2) return null;
+  
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  intersections.sort((a, b) => {
+    let ta = dx !== 0 ? (a.x - x1) / dx : (a.y - y1) / dy;
+    let tb = dx !== 0 ? (b.x - x1) / dx : (b.y - y1) / dy;
+    return ta - tb;
+  });
+  
+  let first = intersections[0];
+  let last = intersections[intersections.length - 1];
+  
+  let midX = (first.x + last.x) / 2;
+  let midY = (first.y + last.y) / 2;
+  if (!pointInPolygon(midX, midY, vertices)) return null;
+  
+  return { x1: first.x, y1: first.y, x2: last.x, y2: last.y };
+}
+
+function lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+  let denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(denom) < 0.0001) return null;
+  
+  let t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+  let u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+  
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    return {
+      x: x1 + t * (x2 - x1),
+      y: y1 + t * (y2 - y1)
+    };
+  }
+  return null;
+}
+
+function pointInPolygon(x, y, vertices) {
+  let inside = false;
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    let xi = vertices[i].x, yi = vertices[i].y;
+    let xj = vertices[j].x, yj = vertices[j].y;
+    
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// ============== SVG EXPORT ==============
+
+function exportSVG() {
+  let sw = parseFloat(document.getElementById('strokeW').value);
+  
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <title>Redaction - Plotter Export</title>
+  <desc>Generated with p5.js for pen plotter</desc>
+  
+  <!-- Background - remove for colored paper -->
+  <rect width="100%" height="100%" fill="${document.getElementById('bgColor').value}"/>
+  
+  <g id="artwork" fill="none" stroke-linecap="round" stroke-linejoin="round">
+`;
+  
+  // Group by color
+  let byColor = {};
+  for (let item of svgContent) {
+    if (!byColor[item.color]) byColor[item.color] = [];
+    byColor[item.color].push(item);
+  }
+  
+  for (let color in byColor) {
+    svg += `    <g stroke="${color}" stroke-width="${sw}">\n`;
+    
+    for (let item of byColor[color]) {
+      if (item.type === 'polygon') {
+        let points = item.points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        svg += `      <polygon points="${points}"/>\n`;
+      } else if (item.type === 'line') {
+        svg += `      <line x1="${item.x1.toFixed(2)}" y1="${item.y1.toFixed(2)}" x2="${item.x2.toFixed(2)}" y2="${item.y2.toFixed(2)}"/>\n`;
+      } else if (item.type === 'circle') {
+        svg += `      <circle cx="${item.cx.toFixed(2)}" cy="${item.cy.toFixed(2)}" r="${item.r.toFixed(2)}" fill="${color}"/>\n`;
+      }
+    }
+    
+    svg += `    </g>\n`;
+  }
+  
+  svg += `  </g>
+</svg>`;
+  
+  let blob = new Blob([svg], { type: 'image/svg+xml' });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_plotter_${Date.now()}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  console.log('SVG exported with', svgContent.length, 'elements');
+}
+
+function exportPNG() {
+  saveCanvas('Redaction_plotter', 'png');
+}
+
+function regenerate() {
+  // If in image mode, just reprocess the image
+  if (imageMode && uploadedImage) {
+    currentSeed = Date.now();
+    updateSeedDisplay();
+    processUploadedImage();
+    return;
+  }
+  
+  currentSeed = Date.now();
+  updateSeedDisplay();
+  
+  // Reset canvas to default height before generating
+  let defaultHeight = 1680;
+  if (height !== defaultHeight) {
+    resizeCanvas(1340, defaultHeight);
+  }
+  
+  generateShapes();
+  
+  // Auto-fit height if enabled
+  let autoFit = document.getElementById('autoFitHeight').checked;
+  if (autoFit && allShapes.length > 0) {
+    let maxY = 0;
+    for (let shape of allShapes) {
+      for (let v of shape.vertices) {
+        if (v.y > maxY) maxY = v.y;
+      }
+    }
+    
+    // Add padding at bottom
+    let requiredHeight = Math.ceil(maxY + 100);
+    
+    if (requiredHeight > height) {
+      resizeCanvas(1340, requiredHeight);
+      console.log('Canvas resized to height:', requiredHeight);
+    }
+  }
+  
+  renderShapes();
+}
+
+function updateSeedDisplay() {
+  let display = document.getElementById('seedDisplay');
+  if (display) display.textContent = currentSeed;
+}
+
+function renderOnly() {
+  renderShapes();
+}
+
+function mousePressed() {
+  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+    if (!imageMode) {
+      regenerate();
+    }
+  }
+}
+
+// ============== SETTINGS SAVE/LOAD ==============
+
+function getSettingsObject() {
+  return {
+    seed: currentSeed,
+    version: document.getElementById('version').value,
+    textLayout: document.getElementById('textLayout').checked,
+    textMode: document.getElementById('textMode').value,
+    spiralLayout: document.getElementById('spiralLayout').checked,
+    autoFitHeight: document.getElementById('autoFitHeight').checked,
+    lineHeight: document.getElementById('lineHeight').value,
+    wordSpacing: document.getElementById('wordSpacing').value,
+    baselineJitter: document.getElementById('baselineJitter').value,
+    fillStyle: document.getElementById('fillStyle').value,
+    fillDensity: document.getElementById('fillDensity').value,
+    hatchAngle: document.getElementById('hatchAngle').value,
+    hideOutline: document.getElementById('hideOutline').checked,
+    strokeW: document.getElementById('strokeW').value,
+    strokeColor: document.getElementById('strokeColor').value,
+    bgColor: document.getElementById('bgColor').value,
+    // Image settings
+    gridSize: document.getElementById('gridSize').value,
+    markStyle: document.getElementById('markStyle').value,
+    markScale: document.getElementById('markScale').value,
+    threshold: document.getElementById('threshold').value,
+    invertImage: document.getElementById('invertImage').checked
+  };
+}
+
+function applySettings(settings) {
+  // Apply seed if present
+  if (settings.seed) {
+    currentSeed = settings.seed;
+  }
+  
+  document.getElementById('version').value = settings.version;
+  document.getElementById('textLayout').checked = settings.textLayout;
+  document.getElementById('textMode').value = settings.textMode || 'regular';
+  document.getElementById('spiralLayout').checked = settings.spiralLayout || false;
+  document.getElementById('autoFitHeight').checked = settings.autoFitHeight || false;
+  document.getElementById('lineHeight').value = settings.lineHeight;
+  document.getElementById('wordSpacing').value = settings.wordSpacing;
+  document.getElementById('baselineJitter').value = settings.baselineJitter;
+  document.getElementById('fillStyle').value = settings.fillStyle;
+  document.getElementById('fillDensity').value = settings.fillDensity;
+  document.getElementById('hatchAngle').value = settings.hatchAngle;
+  document.getElementById('hideOutline').checked = settings.hideOutline || false;
+  document.getElementById('strokeW').value = settings.strokeW;
+  document.getElementById('strokeColor').value = settings.strokeColor;
+  document.getElementById('bgColor').value = settings.bgColor;
+  
+  // Image settings
+  if (settings.gridSize) document.getElementById('gridSize').value = settings.gridSize;
+  if (settings.markStyle) document.getElementById('markStyle').value = settings.markStyle;
+  if (settings.markScale) document.getElementById('markScale').value = settings.markScale;
+  if (settings.threshold) document.getElementById('threshold').value = settings.threshold;
+  if (settings.invertImage !== undefined) document.getElementById('invertImage').checked = settings.invertImage;
+  
+  // Update range displays
+  document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
+}
+
+function saveSettings() {
+  let name = prompt('Enter a name for this preset:', 'Preset ' + new Date().toLocaleDateString());
+  if (!name) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  presets[name] = getSettingsObject();
+  localStorage.setItem('redactionPresets', JSON.stringify(presets));
+  
+  updatePresetDropdown();
+  document.getElementById('savedPresets').value = name;
+  console.log('Saved preset:', name);
+}
+
+function loadSettings() {
+  let select = document.getElementById('savedPresets');
+  let name = select.value;
+  if (!name) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  if (presets[name]) {
+    applySettings(presets[name]);
+    // Use regenerateFromPreset to keep the loaded seed
+    regenerateFromPreset();
+    console.log('Loaded preset:', name, 'with seed:', currentSeed);
+  }
+}
+
+function regenerateFromPreset() {
+  // Same as regenerate but doesn't create a new seed
+  updateSeedDisplay();
+  
+  let defaultHeight = 1680;
+  if (height !== defaultHeight) {
+    resizeCanvas(1340, defaultHeight);
+  }
+  
+  generateShapes();
+  
+  let autoFit = document.getElementById('autoFitHeight').checked;
+  if (autoFit && allShapes.length > 0) {
+    let maxY = 0;
+    for (let shape of allShapes) {
+      for (let v of shape.vertices) {
+        if (v.y > maxY) maxY = v.y;
+      }
+    }
+    
+    let requiredHeight = Math.ceil(maxY + 100);
+    
+    if (requiredHeight > height) {
+      resizeCanvas(1340, requiredHeight);
+      console.log('Canvas resized to height:', requiredHeight);
+    }
+  }
+  
+  renderShapes();
+}
+
+function deleteSettings() {
+  let select = document.getElementById('savedPresets');
+  let name = select.value;
+  if (!name) {
+    alert('Select a preset to delete first.');
+    return;
+  }
+  
+  if (!confirm('Delete preset "' + name + '"?')) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  delete presets[name];
+  localStorage.setItem('redactionPresets', JSON.stringify(presets));
+  
+  updatePresetDropdown();
+  console.log('Deleted preset:', name);
+}
+
+function updatePresetDropdown() {
+  let select = document.getElementById('savedPresets');
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  
+  // Clear existing options except the first
+  select.innerHTML = '<option value="">Load Preset...</option>';
+  
+  // Add saved presets
+  for (let name in presets) {
+    let option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  }
+}
+
+// Initialize preset dropdown on load (also called in setup for p5.js timing)
+
+function exportPresets() {
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  
+  if (Object.keys(presets).length === 0) {
+    alert('No presets to export. Save some settings first.');
+    return;
+  }
+  
+  let data = JSON.stringify(presets, null, 2);
+  let blob = new Blob([data], { type: 'application/json' });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_presets_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  console.log('Exported', Object.keys(presets).length, 'presets');
+}
+
+function importPresets(event) {
+  let file = event.target.files[0];
+  if (!file) return;
+  
+  let reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let imported = JSON.parse(e.target.result);
+      let existing = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+      
+      let count = 0;
+      for (let name in imported) {
+        // Check if preset with same name exists
+        let finalName = name;
+        if (existing[name]) {
+          finalName = name + ' (imported)';
+        }
+        existing[finalName] = imported[name];
+        count++;
+      }
+      
+      localStorage.setItem('redactionPresets', JSON.stringify(existing));
+      updatePresetDropdown();
+      
+      alert('Imported ' + count + ' preset(s).');
+      console.log('Imported', count, 'presets');
+    } catch (err) {
+      alert('Error importing presets: Invalid JSON file.');
+      console.error('Import error:', err);
+    }
+  };
+  reader.readAsText(file);
+  
+  // Reset file input so same file can be imported again
+  event.target.value = '';
+}
+</script>
+</body>
+</html>
