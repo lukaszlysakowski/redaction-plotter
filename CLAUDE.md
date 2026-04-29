@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repository
+
+**GitHub:** https://github.com/lukaszlysakowski/redaction-plotter  
+**Live:** https://lukaszlysakowski.github.io/redaction-plotter
+
 ## Development
 
 No build step. Open `index.html` directly in a browser. p5.js is loaded from CDN (`cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js`).
