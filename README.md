@@ -2,7 +2,7 @@
 
 Generative asemic writing tool built with [p5.js](https://p5js.org), designed for pen plotters and SVG export.
 
-**[Live demo →](https://lukasz.github.io/redaction-plotter)**
+**[Live demo →](https://lukaszlysakowski.github.io/redaction-plotter)**
 
 ## What it does
 
