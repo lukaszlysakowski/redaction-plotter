@@ -56,18 +56,12 @@
       border-radius: 8px;
       border: 1px solid #333;
     }
-    .settings-group.image-mode {
-      border-color: #2A5A93;
-    }
     .settings-group h3 {
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #666;
       margin-bottom: 12px;
-    }
-    .settings-group.image-mode h3 {
-      color: #5A8AC3;
     }
     .settings-group-inner {
       display: flex;
@@ -142,41 +136,11 @@
       background: #444;
       margin: 0 5px;
     }
-    .upload-label {
-      display: inline-block;
-      background: #2A5A93;
-      color: #fff;
-      border: 1px solid #2A5A93;
-      padding: 10px 20px;
-      cursor: pointer;
-      border-radius: 4px;
-      font-size: 14px;
-      transition: background 0.2s;
-    }
-    .upload-label:hover { background: #224a7a; }
-    #imageUpload {
-      display: none;
-    }
-    .mode-indicator {
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .mode-indicator.generative {
-      background: #3d2a2a;
-      color: #A93B2A;
-    }
-    .mode-indicator.image {
-      background: #2a3d5a;
-      color: #5A8AC3;
-    }
+
   </style>
 </head>
 <body>
   <div class="controls">
-    <span class="mode-indicator generative" id="modeIndicator">GENERATIVE MODE</span>
-    <span class="divider"></span>
     <button class="primary" onclick="regenerate()">Regenerate</button>
     <button onclick="exportSVG()">Export SVG</button>
     <button onclick="exportPNG()">Export PNG</button>
@@ -193,50 +157,6 @@
   </div>
   
   <div class="settings">
-    <!-- IMAGE TO GRID PANEL -->
-    <div class="settings-group image-mode">
-      <h3>Image to Low-Res Grid</h3>
-      <div class="settings-group-inner">
-        <div class="setting">
-          <label>Upload Image</label>
-          <label class="upload-label" for="imageUpload">Choose File</label>
-          <input type="file" id="imageUpload" accept="image/*">
-        </div>
-        <div class="setting">
-          <label>Grid Size</label>
-          <input type="range" id="gridSize" min="8" max="64" value="24" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
-          <span class="range-value" id="gridSize-val">24</span>
-        </div>
-        <div class="setting">
-          <label>Mark Style</label>
-          <select id="markStyle" onchange="if(uploadedImage) processUploadedImage();">
-            <option value="circle">Circle</option>
-            <option value="square">Square</option>
-            <option value="cross">Cross</option>
-            <option value="rings">Concentric Rings</option>
-            <option value="lines">Line Density</option>
-          </select>
-        </div>
-        <div class="setting">
-          <label>Mark Scale</label>
-          <input type="range" id="markScale" min="20" max="100" value="80" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
-          <span class="range-value" id="markScale-val">80</span>
-        </div>
-        <div class="setting">
-          <label>Threshold</label>
-          <input type="range" id="threshold" min="0" max="50" value="5" oninput="updateRangeDisplay(this); if(uploadedImage) processUploadedImage();">
-          <span class="range-value" id="threshold-val">5</span>
-        </div>
-        <div class="setting checkbox-row">
-          <input type="checkbox" id="invertImage" onchange="if(uploadedImage) processUploadedImage();">
-          <label>Invert</label>
-        </div>
-        <div class="setting">
-          <button class="secondary" onclick="clearImage()">Clear Image</button>
-        </div>
-      </div>
-    </div>
-    
     <div class="settings-group">
       <h3>Composition (regenerates)</h3>
       <div class="settings-group-inner">
@@ -369,10 +289,6 @@ let shapeScribbleSeeds = [];
 let currentSeed;
 let shapesGenerated = false;
 
-// Image mode variables
-let uploadedImage = null;
-let imageMode = false;
-
 // Settings
 let space = [3, 5, 8, 12, 15, 18, 21, 24, 28, 32, 40];
 
@@ -390,258 +306,9 @@ function setup() {
   document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
   updatePresetDropdown();
   updateSeedDisplay();
-  
-  // Setup image upload handler
-  document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
-  
+
   generateShapes();
   renderShapes();
-}
-
-function handleImageUpload(event) {
-  let file = event.target.files[0];
-  if (!file) return;
-  
-  let reader = new FileReader();
-  reader.onload = function(e) {
-    let img = new Image();
-    img.onload = function() {
-      // Store the image data
-      let tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      let ctx = tempCanvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      
-      uploadedImage = {
-        width: img.width,
-        height: img.height,
-        pixels: ctx.getImageData(0, 0, img.width, img.height).data
-      };
-      
-      console.log('Image loaded:', uploadedImage.width, 'x', uploadedImage.height);
-      
-      // Switch to image mode
-      imageMode = true;
-      updateModeIndicator();
-      processUploadedImage();
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function processUploadedImage() {
-  if (!uploadedImage) return;
-  
-  let gridSize = parseInt(document.getElementById('gridSize').value);
-  let markScale = parseInt(document.getElementById('markScale').value) / 100;
-  let threshold = parseInt(document.getElementById('threshold').value) / 100;
-  let invert = document.getElementById('invertImage').checked;
-  
-  // Clear existing shapes
-  allShapes = [];
-  shapeColors = [];
-  shapeGreys = [];
-  shapeColorz = [];
-  shapeColorsArr = [];
-  shapeColorsz = [];
-  shapeAngles = [];
-  shapeScribbleSeeds = [];
-  
-  // Calculate grid dimensions maintaining aspect ratio
-  let imgAspect = uploadedImage.width / uploadedImage.height;
-  let canvasW = 1340;
-  let canvasH = 1680;
-  
-  let drawWidth, drawHeight, offsetX, offsetY;
-  
-  if (imgAspect > canvasW / canvasH) {
-    // Image is wider
-    drawWidth = canvasW - 100;
-    drawHeight = drawWidth / imgAspect;
-    offsetX = 50;
-    offsetY = (canvasH - drawHeight) / 2;
-  } else {
-    // Image is taller
-    drawHeight = canvasH - 100;
-    drawWidth = drawHeight * imgAspect;
-    offsetX = (canvasW - drawWidth) / 2;
-    offsetY = 50;
-  }
-  
-  let cols = floor(drawWidth / gridSize);
-  let rows = floor(drawHeight / gridSize);
-  
-  // Recenter based on actual grid size
-  let actualWidth = cols * gridSize;
-  let actualHeight = rows * gridSize;
-  offsetX = (canvasW - actualWidth) / 2;
-  offsetY = (canvasH - actualHeight) / 2;
-  
-  // Color palettes for consistency
-  let colors = ["#000", "#333", "#666", "#A93B2A", "#3D4460"];
-  let greys = ["#000", "#1a1a1a", "#333", "#4d4d4d", "#666", "#808080", "#999", "#b3b3b3"];
-  let colors4 = ["#000", "#333", "#666", "#A93B2A", "#000", "#efefef"];
-  let colors5 = ["#000", "#000", "#000", "#fff", "#fff", "#fff", "#0a0a0a", "#A93B2A"];
-  let colorzPalettes = [colors4, colors5];
-  let colorsPalettes = [colors4, colors5];
-  let colorszPalettes = [colors4, colors5];
-  
-  randomSeed(currentSeed);
-  
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      // Sample from center of each cell
-      let sampleX = floor(map(col + 0.5, 0, cols, 0, uploadedImage.width));
-      let sampleY = floor(map(row + 0.5, 0, rows, 0, uploadedImage.height));
-      
-      sampleX = constrain(sampleX, 0, uploadedImage.width - 1);
-      sampleY = constrain(sampleY, 0, uploadedImage.height - 1);
-      
-      // Get pixel brightness
-      let idx = (sampleY * uploadedImage.width + sampleX) * 4;
-      let r = uploadedImage.pixels[idx];
-      let g = uploadedImage.pixels[idx + 1];
-      let b = uploadedImage.pixels[idx + 2];
-      let brightness = (r + g + b) / 3 / 255;
-      
-      if (invert) brightness = 1 - brightness;
-      
-      // Dark = large mark, light = small/no mark
-      let value = 1 - brightness;
-      
-      // Skip if below threshold
-      if (value <= threshold) continue;
-      
-      let cx = offsetX + col * gridSize + gridSize / 2;
-      let cy = offsetY + row * gridSize + gridSize / 2;
-      let cellValue = value * gridSize * markScale;
-      
-      // Create shape vertices based on mark style
-      let markStyleVal = document.getElementById('markStyle').value;
-      let vertices = createMarkVertices(cx, cy, cellValue, gridSize, markScale, markStyleVal);
-      
-      if (vertices && vertices.length > 0) {
-        allShapes.push({ vertices, markType: markStyleVal, cellValue: cellValue });
-        
-        // Assign colors and properties
-        shapeColors.push(random(colors));
-        shapeGreys.push(random(greys));
-        shapeColorz.push(random(random(colorzPalettes)));
-        shapeColorsArr.push(random(random(colorsPalettes)));
-        shapeColorsz.push(random(random(colorszPalettes)));
-        shapeAngles.push(random(-60, 60));
-        shapeScribbleSeeds.push(floor(random(100000)));
-      }
-    }
-  }
-  
-  shapesGenerated = true;
-  console.log('Generated', allShapes.length, 'shapes from image');
-  
-  renderShapes();
-}
-
-function createMarkVertices(cx, cy, size, gridSize, markScale, style) {
-  if (size < 1) return null;
-  
-  switch(style) {
-    case 'circle':
-      // Approximate circle with polygon
-      let circleVerts = [];
-      let segments = 12;
-      let radius = size / 2;
-      for (let i = 0; i < segments; i++) {
-        let angle = (i / segments) * TWO_PI;
-        circleVerts.push({
-          x: cx + cos(angle) * radius,
-          y: cy + sin(angle) * radius
-        });
-      }
-      return circleVerts;
-      
-    case 'square':
-      let half = size * 0.45;
-      return [
-        { x: cx - half, y: cy - half },
-        { x: cx + half, y: cy - half },
-        { x: cx + half, y: cy + half },
-        { x: cx - half, y: cy + half }
-      ];
-      
-    case 'cross':
-      // Cross represented as a thick + shape (polygon)
-      let cs = gridSize * markScale * 0.4;
-      let thick = cs * 0.3;
-      return [
-        { x: cx - thick, y: cy - cs },
-        { x: cx + thick, y: cy - cs },
-        { x: cx + thick, y: cy - thick },
-        { x: cx + cs, y: cy - thick },
-        { x: cx + cs, y: cy + thick },
-        { x: cx + thick, y: cy + thick },
-        { x: cx + thick, y: cy + cs },
-        { x: cx - thick, y: cy + cs },
-        { x: cx - thick, y: cy + thick },
-        { x: cx - cs, y: cy + thick },
-        { x: cx - cs, y: cy - thick },
-        { x: cx - thick, y: cy - thick }
-      ];
-      
-    case 'rings':
-      // For rings, we'll use the largest circle and let fill style create internal detail
-      let ringRadius = size / 2;
-      let ringVerts = [];
-      let ringSegments = 16;
-      for (let i = 0; i < ringSegments; i++) {
-        let angle = (i / ringSegments) * TWO_PI;
-        ringVerts.push({
-          x: cx + cos(angle) * ringRadius,
-          y: cy + sin(angle) * ringRadius
-        });
-      }
-      return ringVerts;
-      
-    case 'lines':
-      // Horizontal line block - represented as thin rectangle
-      let lineCount = floor(map(size, 0, gridSize * markScale, 0, 4));
-      if (lineCount < 1) return null;
-      let blockH = lineCount * 4;
-      let blockW = gridSize * markScale * 0.8;
-      return [
-        { x: cx - blockW/2, y: cy - blockH/2 },
-        { x: cx + blockW/2, y: cy - blockH/2 },
-        { x: cx + blockW/2, y: cy + blockH/2 },
-        { x: cx - blockW/2, y: cy + blockH/2 }
-      ];
-      
-    default:
-      return null;
-  }
-}
-
-function clearImage() {
-  uploadedImage = null;
-  imageMode = false;
-  updateModeIndicator();
-  
-  // Reset file input
-  document.getElementById('imageUpload').value = '';
-  
-  // Regenerate with generative mode
-  regenerate();
-}
-
-function updateModeIndicator() {
-  let indicator = document.getElementById('modeIndicator');
-  if (imageMode) {
-    indicator.textContent = 'IMAGE MODE';
-    indicator.className = 'mode-indicator image';
-  } else {
-    indicator.textContent = 'GENERATIVE MODE';
-    indicator.className = 'mode-indicator generative';
-  }
 }
 
 function updateRangeDisplay(el) {
@@ -652,12 +319,6 @@ function updateRangeDisplay(el) {
 // ============== SHAPE GENERATION ==============
 
 function generateShapes() {
-  // If in image mode, process the image instead
-  if (imageMode && uploadedImage) {
-    processUploadedImage();
-    return;
-  }
-  
   randomSeed(currentSeed);
   
   allShapes = [];
@@ -1522,14 +1183,6 @@ function exportPNG() {
 }
 
 function regenerate() {
-  // If in image mode, just reprocess the image
-  if (imageMode && uploadedImage) {
-    currentSeed = Date.now();
-    updateSeedDisplay();
-    processUploadedImage();
-    return;
-  }
-  
   currentSeed = Date.now();
   updateSeedDisplay();
   
@@ -1574,9 +1227,7 @@ function renderOnly() {
 
 function mousePressed() {
   if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-    if (!imageMode) {
-      regenerate();
-    }
+    regenerate();
   }
 }
 
@@ -1599,13 +1250,7 @@ function getSettingsObject() {
     hideOutline: document.getElementById('hideOutline').checked,
     strokeW: document.getElementById('strokeW').value,
     strokeColor: document.getElementById('strokeColor').value,
-    bgColor: document.getElementById('bgColor').value,
-    // Image settings
-    gridSize: document.getElementById('gridSize').value,
-    markStyle: document.getElementById('markStyle').value,
-    markScale: document.getElementById('markScale').value,
-    threshold: document.getElementById('threshold').value,
-    invertImage: document.getElementById('invertImage').checked
+    bgColor: document.getElementById('bgColor').value
   };
 }
 
@@ -1630,13 +1275,6 @@ function applySettings(settings) {
   document.getElementById('strokeW').value = settings.strokeW;
   document.getElementById('strokeColor').value = settings.strokeColor;
   document.getElementById('bgColor').value = settings.bgColor;
-  
-  // Image settings
-  if (settings.gridSize) document.getElementById('gridSize').value = settings.gridSize;
-  if (settings.markStyle) document.getElementById('markStyle').value = settings.markStyle;
-  if (settings.markScale) document.getElementById('markScale').value = settings.markScale;
-  if (settings.threshold) document.getElementById('threshold').value = settings.threshold;
-  if (settings.invertImage !== undefined) document.getElementById('invertImage').checked = settings.invertImage;
   
   // Update range displays
   document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
