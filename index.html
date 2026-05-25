@@ -41,15 +41,6 @@
     button.primary:hover { background: #8a2f22; }
     button.secondary { background: #2A5A93; border-color: #2A5A93; }
     button.secondary:hover { background: #224a7a; }
-    .settings {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: flex-start;
-      max-width: 1400px;
-    }
     .settings-group {
       background: #252525;
       padding: 15px;
@@ -107,11 +98,22 @@
     .checkbox-row input {
       order: 1;
     }
+    .main-layout {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .canvas-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
     #canvas-container {
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     .info {
-      margin-top: 20px;
+      margin-top: 12px;
       font-size: 12px;
       color: #666;
       text-align: center;
@@ -136,6 +138,32 @@
       background: #444;
       margin: 0 5px;
     }
+    /* Sidebar column */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 200px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 20px;
+    }
+    .sidebar .settings-group-inner {
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar .divider {
+      width: 100%;
+      height: 1px;
+      margin: 2px 0;
+    }
+    .sidebar .setting input,
+    .sidebar .setting select {
+      width: 100%;
+    }
+    .sidebar .setting input[type="range"] {
+      width: 100%;
+    }
 
   </style>
 </head>
@@ -156,123 +184,126 @@
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importPresets(event)">
   </div>
   
-  <div class="settings">
-    <div class="settings-group">
-      <h3>Composition (regenerates)</h3>
-      <div class="settings-group-inner">
-        <div class="setting">
-          <label>Version (1-7)</label>
-          <input type="number" id="version" min="1" max="7" value="3" onchange="regenerate()">
+  <div class="main-layout">
+    <div class="canvas-area">
+      <div id="canvas-container"></div>
+      <div class="info">
+        Click canvas to regenerate • Seed: <span id="seedDisplay">-</span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="settings-group">
+        <h3>Composition (regenerates)</h3>
+        <div class="settings-group-inner">
+          <div class="setting">
+            <label>Version (1-7)</label>
+            <input type="number" id="version" min="1" max="7" value="3" onchange="regenerate()">
+          </div>
+          <div class="divider"></div>
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="textLayout" onchange="regenerate()">
+            <label>Text-like Layout</label>
+          </div>
+          <div class="setting">
+            <label>Text Mode</label>
+            <select id="textMode" onchange="regenerate()">
+              <option value="regular">Regular</option>
+              <option value="fibSpacing">Fibonacci Spacing</option>
+              <option value="fibWords">Fibonacci Words</option>
+              <option value="fibBoth">Fibonacci Both</option>
+            </select>
+          </div>
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="spiralLayout" onchange="regenerate()">
+            <label>Fibonacci Spiral</label>
+          </div>
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="autoFitHeight" onchange="regenerate()">
+            <label>Auto-fit Height</label>
+          </div>
+          <div class="setting">
+            <label>Line Height</label>
+            <input type="range" id="lineHeight" min="40" max="150" value="80" oninput="updateRangeDisplay(this); regenerate()">
+            <span class="range-value" id="lineHeight-val">80</span>
+          </div>
+          <div class="setting">
+            <label>Word Spacing</label>
+            <input type="range" id="wordSpacing" min="20" max="100" value="50" oninput="updateRangeDisplay(this); regenerate()">
+            <span class="range-value" id="wordSpacing-val">50</span>
+          </div>
+          <div class="setting">
+            <label>Baseline Jitter</label>
+            <input type="range" id="baselineJitter" min="0" max="20" value="5" oninput="updateRangeDisplay(this); regenerate()">
+            <span class="range-value" id="baselineJitter-val">5</span>
+          </div>
         </div>
-        <div class="divider"></div>
-        <div class="setting checkbox-row">
-          <input type="checkbox" id="textLayout" onchange="regenerate()">
-          <label>Text-like Layout</label>
-        </div>
-        <div class="setting">
-          <label>Text Mode</label>
-          <select id="textMode" onchange="regenerate()">
-            <option value="regular">Regular</option>
-            <option value="fibSpacing">Fibonacci Spacing</option>
-            <option value="fibWords">Fibonacci Words</option>
-            <option value="fibBoth">Fibonacci Both</option>
-          </select>
-        </div>
-        <div class="setting checkbox-row">
-          <input type="checkbox" id="spiralLayout" onchange="regenerate()">
-          <label>Fibonacci Spiral</label>
-        </div>
-        <div class="setting checkbox-row">
-          <input type="checkbox" id="autoFitHeight" onchange="regenerate()">
-          <label>Auto-fit Height</label>
-        </div>
-        <div class="setting">
-          <label>Line Height</label>
-          <input type="range" id="lineHeight" min="40" max="150" value="80" oninput="updateRangeDisplay(this); regenerate()">
-          <span class="range-value" id="lineHeight-val">80</span>
-        </div>
-        <div class="setting">
-          <label>Word Spacing</label>
-          <input type="range" id="wordSpacing" min="20" max="100" value="50" oninput="updateRangeDisplay(this); regenerate()">
-          <span class="range-value" id="wordSpacing-val">50</span>
-        </div>
-        <div class="setting">
-          <label>Baseline Jitter</label>
-          <input type="range" id="baselineJitter" min="0" max="20" value="5" oninput="updateRangeDisplay(this); regenerate()">
-          <span class="range-value" id="baselineJitter-val">5</span>
+      </div>
+
+      <div class="settings-group">
+        <h3>Display (preserves shapes)</h3>
+        <div class="settings-group-inner">
+          <div class="setting">
+            <label>Fill Style</label>
+            <select id="fillStyle" onchange="renderOnly()">
+              <option value="hatch">Hatching</option>
+              <option value="cross">Cross-hatch</option>
+              <option value="stipple">Stippling</option>
+              <option value="contour">Contour</option>
+              <option value="scribble">Scribble</option>
+              <option value="none">Outline Only</option>
+            </select>
+          </div>
+          <div class="setting">
+            <label>Fill Density</label>
+            <input type="range" id="fillDensity" min="2" max="20" value="6" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="fillDensity-val">6</span>
+          </div>
+          <div class="setting">
+            <label>Hatch Angle</label>
+            <select id="hatchAngle" onchange="renderOnly()">
+              <option value="random">Random per shape</option>
+              <option value="uniform">Uniform (45°)</option>
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+          </div>
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="hideOutline" onchange="renderOnly()">
+            <label>Hide Outline</label>
+          </div>
+          <div class="divider"></div>
+          <div class="setting">
+            <label>Stroke Weight</label>
+            <input type="range" id="strokeW" min="0.3" max="3" step="0.1" value="1" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="strokeW-val">1</span>
+          </div>
+          <div class="setting">
+            <label>Stroke Color</label>
+            <select id="strokeColor" onchange="renderOnly()">
+              <option value="black">Black</option>
+              <option value="greyscale">Greyscale</option>
+              <option value="colorz">Colorz Palette</option>
+              <option value="colors">Colors Palette</option>
+              <option value="colorsz">Colorsz Palette</option>
+              <option value="multi">Multi-color</option>
+              <option value="white">White</option>
+            </select>
+          </div>
+          <div class="setting">
+            <label>Background</label>
+            <select id="bgColor" onchange="renderOnly()">
+              <option value="#fff">White</option>
+              <option value="#EBE6E6">Warm Gray</option>
+              <option value="#F7E6D4">Cream</option>
+              <option value="#D4E9F9">Light Blue</option>
+              <option value="#A93B2A">Crimson</option>
+              <option value="#0a0a0a">Black</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
-    
-    <div class="settings-group">
-      <h3>Display (preserves shapes)</h3>
-      <div class="settings-group-inner">
-        <div class="setting">
-          <label>Fill Style</label>
-          <select id="fillStyle" onchange="renderOnly()">
-            <option value="hatch">Hatching</option>
-            <option value="cross">Cross-hatch</option>
-            <option value="stipple">Stippling</option>
-            <option value="contour">Contour</option>
-            <option value="scribble">Scribble</option>
-            <option value="none">Outline Only</option>
-          </select>
-        </div>
-        <div class="setting">
-          <label>Fill Density</label>
-          <input type="range" id="fillDensity" min="2" max="20" value="6" oninput="updateRangeDisplay(this); renderOnly()">
-          <span class="range-value" id="fillDensity-val">6</span>
-        </div>
-        <div class="setting">
-          <label>Hatch Angle</label>
-          <select id="hatchAngle" onchange="renderOnly()">
-            <option value="random">Random per shape</option>
-            <option value="uniform">Uniform (45°)</option>
-            <option value="horizontal">Horizontal</option>
-            <option value="vertical">Vertical</option>
-          </select>
-        </div>
-        <div class="setting checkbox-row">
-          <input type="checkbox" id="hideOutline" onchange="renderOnly()">
-          <label>Hide Outline</label>
-        </div>
-        <div class="divider"></div>
-        <div class="setting">
-          <label>Stroke Weight</label>
-          <input type="range" id="strokeW" min="0.3" max="3" step="0.1" value="1" oninput="updateRangeDisplay(this); renderOnly()">
-          <span class="range-value" id="strokeW-val">1</span>
-        </div>
-        <div class="setting">
-          <label>Stroke Color</label>
-          <select id="strokeColor" onchange="renderOnly()">
-            <option value="black">Black</option>
-            <option value="greyscale">Greyscale</option>
-            <option value="colorz">Colorz Palette</option>
-            <option value="colors">Colors Palette</option>
-            <option value="colorsz">Colorsz Palette</option>
-            <option value="multi">Multi-color</option>
-            <option value="white">White</option>
-          </select>
-        </div>
-        <div class="setting">
-          <label>Background</label>
-          <select id="bgColor" onchange="renderOnly()">
-            <option value="#fff">White</option>
-            <option value="#EBE6E6">Warm Gray</option>
-            <option value="#F7E6D4">Cream</option>
-            <option value="#D4E9F9">Light Blue</option>
-            <option value="#A93B2A">Crimson</option>
-            <option value="#0a0a0a">Black</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div id="canvas-container"></div>
-  
-  <div class="info">
-    Click canvas to regenerate • Seed: <span id="seedDisplay">-</span>
   </div>
 
 <script>
