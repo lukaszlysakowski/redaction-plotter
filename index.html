@@ -148,6 +148,9 @@
       position: sticky;
       top: 20px;
     }
+    .sidebar .settings-group {
+      width: 100%;
+    }
     .sidebar .settings-group-inner {
       flex-direction: column;
       gap: 10px;
@@ -157,12 +160,24 @@
       height: 1px;
       margin: 2px 0;
     }
+    .sidebar .setting {
+      width: 100%;
+      overflow: hidden;
+    }
     .sidebar .setting input,
     .sidebar .setting select {
       width: 100%;
+      box-sizing: border-box;
     }
     .sidebar .setting input[type="range"] {
       width: 100%;
+    }
+    .sidebar .checkbox-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
     }
 
   </style>
