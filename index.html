@@ -111,8 +111,6 @@
     }
     #canvas-container {
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      transform-origin: top left;
-      transition: transform 0.2s ease;
     }
     .zoom-toggle {
       display: flex;
@@ -350,7 +348,7 @@
 // ============== ZOOM ==============
 
 function setZoom(scale, btn) {
-  document.getElementById('canvas-container').style.transform = `scale(${scale})`;
+  document.getElementById('canvas-container').style.zoom = scale;
   document.querySelectorAll('.zoom-toggle button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
