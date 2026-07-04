@@ -14,7 +14,6 @@ Generates pages of abstract glyph-like shapes that evoke redacted documents, ase
 - **Layout modes** — standard, text-like, Fibonacci spacing/words, phyllotaxis spiral
 - **Fill styles** — hatching, cross-hatch, stippling, contour lines, scribble
 - **Color palettes** — black, greyscale, curated multi-color sets, white-on-dark
-- **Image to grid** — upload a photo and convert it to mark-based halftone
 - **SVG export** — plotter-ready, grouped by color layer
 - **PNG export** — screen resolution
 - **Presets** — save, load, export and import named settings as JSON
@@ -29,7 +28,6 @@ Click the canvas or press **Regenerate** for a new variation. Adjust controls an
 
 | Panel | What it does |
 |---|---|
-| Image to Low-Res Grid | Upload an image and render it as marks |
 | Composition | Shape generation — changes require Regenerate |
 | Display | Fill style, colors, stroke — updates without regenerating |
 
