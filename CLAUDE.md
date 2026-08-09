@@ -64,6 +64,7 @@ Each fill style in `renderShapes()` calls a generator function that returns an a
 `exportOptimizedSVG()` (via `buildOptimizedSVG()`) is a second, lossless export for plotting:
 `mergeSegments()` chains shared-endpoint fill segments into polylines and dedupes exact overlaps,
 `travelSort()` greedily orders paths/points to cut pen-up travel, all per pen-color layer. Invariant:
-only path structure and order change — the optimized SVG's quantized point set equals the raw
-export's. `OPT_EPS` (0.1px) is the shared merge/dedupe tolerance; layers over `OPT_MAX_SORT` (20000)
-skip the sort to stay responsive.
+only path structure and order change — the optimized SVG's points match the raw export's within
+`OPT_EPS` (near-coincident segments under 0.1px dedupe to one survivor; nothing moves further than
+that tolerance). `OPT_EPS` (0.1px) is the shared merge/dedupe tolerance; layers over `OPT_MAX_SORT`
+(20000) skip the sort to stay responsive.
