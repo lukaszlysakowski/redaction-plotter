@@ -202,6 +202,7 @@
   <div class="controls">
     <button class="primary" onclick="regenerate()">Regenerate</button>
     <button onclick="exportSVG()">Export SVG</button>
+    <button onclick="exportOptimizedSVG()">Export SVG (optimized)</button>
     <button onclick="exportPNG()">Export PNG</button>
     <span class="divider"></span>
     <button onclick="saveSettings()">Save Settings</button>
@@ -1205,6 +1206,7 @@ function pointInPolygon(x, y, vertices) {
 
 // --- Plotter optimization (lossless: only path structure + order change) ---
 const OPT_EPS = 0.1;
+const OPT_MAX_SORT = 20000;   // per-layer item cap above which travel-sort is skipped
 function optKey(x, y) { return Math.round(x / OPT_EPS) + ',' + Math.round(y / OPT_EPS); }
 
 // Merge line segments that share endpoints into polylines; drop degenerate + exact-duplicate segments.
@@ -1311,6 +1313,82 @@ function estimateTravel(items) {
     }
   }
   return total;
+}
+
+// Build the optimized SVG string (merge + dedupe + travel-sort, per color layer). Returns null if nothing to export.
+function buildOptimizedSVG() {
+  if (!svgContent.length) { console.warn('Optimized SVG: nothing rendered yet'); return null; }
+  const sw = parseFloat(document.getElementById('strokeW').value);
+  const bg = document.getElementById('bgColor').value;
+
+  // group by pen color
+  const byColor = {};
+  for (const item of svgContent) { (byColor[item.color] || (byColor[item.color] = [])).push(item); }
+
+  let body = '';
+  let rawCount = 0, pathCount = 0, travBefore = 0, travAfter = 0;
+
+  for (const color in byColor) {
+    const group = byColor[color];
+    rawCount += group.length;
+
+    // 1) merge line segments into polylines
+    const segs = group.filter(g => g.type === 'line').map(g => ({ x1:g.x1, y1:g.y1, x2:g.x2, y2:g.y2 }));
+    const merged = mergeSegments(segs);
+
+    // build the item list: merged polylines (+ closed rings), passthrough polygons, dots
+    const items = [];
+    for (const pl of merged) {
+      const closed = pl.length > 2 && Math.abs(pl[0].x - pl[pl.length-1].x) < OPT_EPS && Math.abs(pl[0].y - pl[pl.length-1].y) < OPT_EPS;
+      items.push({ pts: closed ? pl.slice(0, -1) : pl, closed });   // strip duplicate trailing point on closed rings
+    }
+    for (const g of group) {
+      if (g.type === 'polygon') items.push({ pts: g.points.map(p => ({ x:p.x, y:p.y })), closed: true });
+      else if (g.type === 'circle') items.push({ dot: { x:g.cx, y:g.cy }, r:g.r });
+    }
+
+    // 2) travel-sort (skip for oversized layers)
+    travBefore += estimateTravel(items);
+    const ordered = items.length <= OPT_MAX_SORT ? travelSort(items) : (console.warn('Optimized SVG: layer '+color+' has '+items.length+' items > cap; skipping sort'), items);
+    travAfter += estimateTravel(ordered);
+
+    // 3) emit
+    body += `    <g stroke="${color}" stroke-width="${sw}">\n`;
+    for (const it of ordered) {
+      if (it.dot) { body += `      <circle cx="${it.dot.x.toFixed(2)}" cy="${it.dot.y.toFixed(2)}" r="${it.r.toFixed(2)}" fill="${color}"/>\n`; pathCount++; }
+      else {
+        const pts = it.pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        body += it.closed ? `      <polygon points="${pts}"/>\n` : `      <polyline points="${pts}"/>\n`;
+        pathCount++;
+      }
+    }
+    body += `    </g>\n`;
+  }
+
+  console.log('Optimized SVG: ' + rawCount + ' raw elements -> ' + pathCount + ' paths; pen-up travel ' +
+              Math.round(travBefore) + ' -> ' + Math.round(travAfter) + ' (' +
+              (travBefore > 0 ? Math.round(100 * (1 - travAfter / travBefore)) : 0) + '% less)');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <title>Redaction - Plotter Export (optimized)</title>
+  <desc>Generated with p5.js for pen plotter; merged + travel-sorted</desc>
+  <rect width="100%" height="100%" fill="${bg}"/>
+  <g id="artwork" fill="none" stroke-linecap="round" stroke-linejoin="round">
+${body}  </g>
+</svg>`;
+}
+
+function exportOptimizedSVG() {
+  const svg = buildOptimizedSVG();
+  if (!svg) return;
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_plotter_optimized_${Date.now()}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function exportSVG() {
