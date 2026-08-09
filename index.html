@@ -1203,6 +1203,59 @@ function pointInPolygon(x, y, vertices) {
 
 // ============== SVG EXPORT ==============
 
+// --- Plotter optimization (lossless: only path structure + order change) ---
+const OPT_EPS = 0.1;
+function optKey(x, y) { return Math.round(x / OPT_EPS) + ',' + Math.round(y / OPT_EPS); }
+
+// Merge line segments that share endpoints into polylines; drop degenerate + exact-duplicate segments.
+// segs: [{x1,y1,x2,y2}] -> [[{x,y},...], ...]. A polyline with coincident ends is a closed ring.
+function mergeSegments(segs) {
+  const seen = new Set();            // dedupe by unordered endpoint-key pair
+  const nodes = new Map();           // key -> {x,y, edges:[edgeIndex]}
+  const edges = [];                  // {a:key, b:key, used:false}
+  function node(x, y) {
+    const k = optKey(x, y);
+    if (!nodes.has(k)) nodes.set(k, { x, y, edges: [] });
+    return k;
+  }
+  for (const s of segs) {
+    const ka = optKey(s.x1, s.y1), kb = optKey(s.x2, s.y2);
+    if (ka === kb) continue;                                   // degenerate
+    const pair = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+    if (seen.has(pair)) continue;                              // exact duplicate
+    seen.add(pair);
+    const a = node(s.x1, s.y1), b = node(s.x2, s.y2);
+    const ei = edges.length;
+    edges.push({ a, b, used: false });
+    nodes.get(a).edges.push(ei);
+    nodes.get(b).edges.push(ei);
+  }
+  function extend(chain, endKey, forward) {
+    while (true) {
+      const nd = nodes.get(endKey);
+      const next = nd.edges.find(ei => !edges[ei].used);
+      if (next === undefined) break;
+      edges[next].used = true;
+      const e = edges[next];
+      const otherKey = e.a === endKey ? e.b : e.a;
+      const otherNode = nodes.get(otherKey);
+      if (forward) chain.push(otherNode); else chain.unshift(otherNode);
+      endKey = otherKey;
+    }
+  }
+  const polylines = [];
+  for (let i = 0; i < edges.length; i++) {
+    if (edges[i].used) continue;
+    edges[i].used = true;
+    const e = edges[i];
+    const chain = [nodes.get(e.a), nodes.get(e.b)];
+    extend(chain, e.b, true);        // walk forward
+    extend(chain, e.a, false);       // walk backward
+    polylines.push(chain.map(n => ({ x: n.x, y: n.y })));
+  }
+  return polylines;
+}
+
 function exportSVG() {
   let sw = parseFloat(document.getElementById('strokeW').value);
   
