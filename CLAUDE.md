@@ -60,3 +60,10 @@ Each fill style in `renderShapes()` calls a generator function that returns an a
 ### SVG export
 
 `exportSVG()` replays `svgContent[]` (populated during `renderShapes()`) and groups elements by stroke color. This color-layering is intentional for pen plotter workflows — each color group maps to a separate pen.
+
+`exportOptimizedSVG()` (via `buildOptimizedSVG()`) is a second, lossless export for plotting:
+`mergeSegments()` chains shared-endpoint fill segments into polylines and dedupes exact overlaps,
+`travelSort()` greedily orders paths/points to cut pen-up travel, all per pen-color layer. Invariant:
+only path structure and order change — the optimized SVG's quantized point set equals the raw
+export's. `OPT_EPS` (0.1px) is the shared merge/dedupe tolerance; layers over `OPT_MAX_SORT` (20000)
+skip the sort to stay responsive.

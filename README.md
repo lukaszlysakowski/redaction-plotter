@@ -31,6 +31,14 @@ Click the canvas or press **Regenerate** for a new variation. Adjust controls an
 | Composition | Shape generation — changes require Regenerate |
 | Display | Fill style, colors, stroke — updates without regenerating |
 
+### Optimized export
+
+**Export SVG (optimized)** produces the same drawing tuned for pen plotters: coincident line
+segments are merged into polylines, exact-overlap duplicates are removed, and paths are travel-
+sorted per pen-color layer to minimize pen-up motion. It is **lossless** — identical ink on paper,
+only the path structure and draw order change. The console logs the element-count and pen-up-travel
+reduction. Use the plain **Export SVG** if you want the raw, unmerged paths for editing.
+
 ## GitHub Pages
 
 Enable Pages from the `main` branch root in your repo Settings → Pages.
