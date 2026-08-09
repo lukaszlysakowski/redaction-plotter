@@ -1256,6 +1256,63 @@ function mergeSegments(segs) {
   return polylines;
 }
 
+function dist2(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
+
+// Greedy nearest-neighbor ordering from (0,0). Flips open polylines to start at the nearer end;
+// rotates closed polylines to start at the vertex nearest the pen. Reorders in place-ish, returns array.
+function travelSort(items) {
+  const remaining = items.slice();
+  const out = [];
+  let px = 0, py = 0;
+  while (remaining.length) {
+    let best = -1, bestD = Infinity, bestFlip = false;
+    for (let i = 0; i < remaining.length; i++) {
+      const it = remaining[i];
+      if (it.dot) {
+        const d = dist2(px, py, it.dot.x, it.dot.y);
+        if (d < bestD) { bestD = d; best = i; bestFlip = false; }
+      } else if (it.closed) {
+        for (const p of it.pts) { const d = dist2(px, py, p.x, p.y); if (d < bestD) { bestD = d; best = i; bestFlip = false; } }
+      } else {
+        const a = it.pts[0], b = it.pts[it.pts.length - 1];
+        const da = dist2(px, py, a.x, a.y), db = dist2(px, py, b.x, b.y);
+        const d = Math.min(da, db);
+        if (d < bestD) { bestD = d; best = i; bestFlip = db < da; }
+      }
+    }
+    const it = remaining.splice(best, 1)[0];
+    if (it.dot) {
+      out.push(it); px = it.dot.x; py = it.dot.y;
+    } else if (it.closed) {
+      // rotate loop to start at the vertex nearest the pen
+      let bi = 0, bd = Infinity;
+      for (let j = 0; j < it.pts.length; j++) { const d = dist2(px, py, it.pts[j].x, it.pts[j].y); if (d < bd) { bd = d; bi = j; } }
+      // pts is a closed ring stored WITHOUT a duplicate trailing point here
+      it.pts = it.pts.slice(bi).concat(it.pts.slice(0, bi));
+      out.push(it);
+      px = it.pts[0].x; py = it.pts[0].y;   // pen returns to loop start
+    } else {
+      if (bestFlip) it.pts.reverse();
+      out.push(it);
+      const last = it.pts[it.pts.length - 1]; px = last.x; py = last.y;
+    }
+  }
+  return out;
+}
+
+function estimateTravel(items) {
+  let px = 0, py = 0, total = 0;
+  for (const it of items) {
+    if (it.dot) { total += Math.hypot(px - it.dot.x, py - it.dot.y); px = it.dot.x; py = it.dot.y; }
+    else {
+      const a = it.pts[0], b = it.pts[it.pts.length - 1];
+      total += Math.hypot(px - a.x, py - a.y);
+      if (it.closed) { px = a.x; py = a.y; } else { px = b.x; py = b.y; }
+    }
+  }
+  return total;
+}
+
 function exportSVG() {
   let sw = parseFloat(document.getElementById('strokeW').value);
   
