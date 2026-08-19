@@ -732,25 +732,30 @@ function generateShapes8() {
 
   let count = floor(random(1, 6)); // 1–5
 
-  // Vertical: divide v3's row range into count equal bands, one shape per band
-  let rowRange = 1400 * lineHeightMult;
-  let rowStep  = rowRange / max(count, 1);
+  // Spread shapes across most of canvas height
+  let totalH   = 1500 * lineHeightMult;
+  let topStart = (1680 - totalH) / 2;
+  let rowStep  = totalH / count;
 
   for (let i = 0; i < count; i++) {
-    // Place each shape in its vertical band with slight random offset
-    let rowY   = i * rowStep + random(0, rowStep * 0.4);
+    let rowY   = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
     let jitter = random(-baselineJitter, baselineJitter);
 
-    // Horizontal: spread quadX across v3's full horizontal range
-    let quadX = random(420 / size, 1410);
-    quadX = constrain(quadX * wordSpacingMult, 420 / size, 1410);
+    // Wide flat horizontal trapezoid
+    let shapeW = random(780, 1080) * wordSpacingMult;
+    shapeW = constrain(shapeW, 680, 1160);
+    let shapeH = random(200, 360);
 
-    // Exact same vertex formula as generateShapes3
+    // Centered horizontally with slight drift
+    let cx = 670 + random(-80, 80);
+    let lx = cx - shapeW / 2;
+    let rx = cx + shapeW / 2;
+
     let vertices = createQuadVertices(
-      quadX - random(200, 400) / size, rowY + random(180, 200) / size + jitter,
-      quadX - random(80,  240) / size, rowY + random(120, 240) / size + jitter,
-      quadX - random(80,  420) / size, rowY + 400 / size              + jitter,
-      quadX - random(220, 400) / size, rowY + 400 / size              + jitter
+      lx + random(-20, 20), rowY + jitter,
+      rx + random(-20, 20), rowY + random(-15, 15) + jitter,
+      rx + random(-35, 35), rowY + shapeH + jitter,
+      lx + random(-35, 35), rowY + shapeH + random(-15, 15) + jitter
     );
     allShapes.push({ vertices });
   }
