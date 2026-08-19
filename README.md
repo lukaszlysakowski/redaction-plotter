@@ -10,7 +10,7 @@ Generates pages of abstract glyph-like shapes that evoke redacted documents, ase
 
 ## Features
 
-- **7 composition versions** — from tight dense scripts to loose open marks
+- **8 composition versions** — from tight dense scripts to sparse large-format marks
 - **Layout modes** — standard, text-like, Fibonacci spacing/words, phyllotaxis spiral
 - **Fill styles** — hatching, cross-hatch, stippling, contour lines, scribble
 - **Color palettes** — black, greyscale, curated multi-color sets, white-on-dark
