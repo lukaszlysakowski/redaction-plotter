@@ -723,30 +723,31 @@ function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
   }
 }
 
-// Version 8 — 1–5 large polygons, composed for A3 / 11×17 vertical format
+// Version 8 — 1–5 large quads, same shape character as v1–7, for A3 / 11×17
 function generateShapes8() {
-  let margin = 120;
   let count = floor(random(1, 6)); // 1–5
+  let margin = 100;
 
   for (let i = 0; i < count; i++) {
-    let cx = random(margin + 160, width  - margin - 160);
-    let cy = random(margin + 160, height - margin - 160);
+    let cx = random(margin + 250, width  - margin - 250);
+    let cy = random(margin + 150, height - margin - 350);
 
-    let numVerts  = floor(random(5, 13));
-    let radiusX   = random(160, 520);
-    let radiusY   = random(160, 520);
-    let rotation  = random(TWO_PI);
+    // Scale up the quad geometry to fill a large portion of the canvas
+    let w  = random(300, 700);
+    let h  = random(250, 550);
 
-    let vertices = [];
-    for (let j = 0; j < numVerts; j++) {
-      // Slightly uneven angular spacing for organic feel
-      let angle = rotation + (j / numVerts) * TWO_PI + random(-0.28, 0.28);
-      let r = random(0.5, 1.0);
-      vertices.push({
-        x: cx + cos(angle) * radiusX * r,
-        y: cy + sin(angle) * radiusY * r
-      });
-    }
+    // Mirror the skewed-trapezoid character from v1–7:
+    // top edge sits slightly higher on one side, bottom edge is nearly flat
+    let topSkew  = random(-w * 0.25, w * 0.25);
+    let botSkew  = random(-w * 0.15, w * 0.15);
+    let taper    = random(0.55, 1.05); // top narrower or wider than bottom
+
+    let vertices = createQuadVertices(
+      cx - (w * taper / 2) + topSkew,   cy               + random(-20, 20),
+      cx + (w * taper / 2) + topSkew,   cy               + random(-20, 20),
+      cx + (w / 2)         + botSkew,   cy + h           + random(-20, 20),
+      cx - (w / 2)         + botSkew,   cy + h           + random(-20, 20)
+    );
     allShapes.push({ vertices });
   }
 }
