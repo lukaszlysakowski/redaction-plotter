@@ -723,30 +723,41 @@ function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
   }
 }
 
-// Version 8 — 1–5 large quads, same shape character as v1–7, for A3 / 11×17
+// Version 8 — 1–5 shapes, exact v3 quad formula, rhythmically distributed
 function generateShapes8() {
-  let count = floor(random(1, 6)); // 1–5
-  let margin = 100;
+  let lineHeightMult = parseInt(document.getElementById('lineHeight').value) / 80;
+  let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50;
+  let baselineJitter  = parseInt(document.getElementById('baselineJitter').value);
+
+  let count  = floor(random(1, 6)); // 1–5
+  // Fixed small scale so shapes are large on the A3 canvas —
+  // same proportions as v3 formula, just bigger absolute size
+  let s      = random(0.35, 0.6);
+  let margin = 80;
+
+  // The v3 formula places the visible shape at rowY+120/s (top) to rowY+400/s (bottom).
+  // Anchor rowStart so the first shape's visible top sits at the margin,
+  // and rowEnd so the last shape's visible bottom sits at the canvas bottom margin.
+  let rowStart = margin - 120 / s;
+  let rowEnd   = 1680 - margin - 400 / s;
+  let rowSpan  = (rowEnd - rowStart) * lineHeightMult;
+  let rowStep  = count > 1 ? rowSpan / (count - 1) : 0;
 
   for (let i = 0; i < count; i++) {
-    let cx = random(margin + 250, width  - margin - 250);
-    let cy = random(margin + 150, height - margin - 350);
+    let rowY   = rowStart + i * rowStep;
+    let jitter = random(-baselineJitter * 6, baselineJitter * 6);
 
-    // Scale up the quad geometry to fill a large portion of the canvas
-    let w  = random(300, 700);
-    let h  = random(250, 550);
+    // Horizontal rhythm: one position per row, stepped by wordSpacingMult
+    // quadX start matches v3's starting point scaled to the larger size
+    let quadX = 420 / s + random(0, 90 * wordSpacingMult * 3);
+    quadX = constrain(quadX, 420 / s, 1340);
 
-    // Mirror the skewed-trapezoid character from v1–7:
-    // top edge sits slightly higher on one side, bottom edge is nearly flat
-    let topSkew  = random(-w * 0.25, w * 0.25);
-    let botSkew  = random(-w * 0.15, w * 0.15);
-    let taper    = random(0.55, 1.05); // top narrower or wider than bottom
-
+    // Exact same vertex formula as generateShapes3
     let vertices = createQuadVertices(
-      cx - (w * taper / 2) + topSkew,   cy               + random(-20, 20),
-      cx + (w * taper / 2) + topSkew,   cy               + random(-20, 20),
-      cx + (w / 2)         + botSkew,   cy + h           + random(-20, 20),
-      cx - (w / 2)         + botSkew,   cy + h           + random(-20, 20)
+      quadX - random(200, 400) / s, rowY + random(180, 200) / s + jitter,
+      quadX - random(80,  240) / s, rowY + random(120, 240) / s + jitter,
+      quadX - random(80,  420) / s, rowY + 400 / s             + jitter,
+      quadX - random(220, 400) / s, rowY + 400 / s             + jitter
     );
     allShapes.push({ vertices });
   }
