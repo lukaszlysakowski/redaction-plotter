@@ -732,7 +732,6 @@ function generateShapes8() {
 
   let count = floor(random(1, 6)); // 1–5
 
-  // Spread shapes across most of canvas height
   let totalH   = 1500 * lineHeightMult;
   let topStart = (1680 - totalH) / 2;
   let rowStep  = totalH / count;
@@ -741,21 +740,24 @@ function generateShapes8() {
     let rowY   = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
     let jitter = random(-baselineJitter, baselineJitter);
 
-    // Wide flat horizontal trapezoid
+    // Wide horizontal band with v1-7 angular character:
+    // left and right sides at different heights, top edge is diagonal not flat
     let shapeW = random(780, 1080) * wordSpacingMult;
     shapeW = constrain(shapeW, 680, 1160);
-    let shapeH = random(200, 360);
 
-    // Centered horizontally with slight drift
+    let hLeft  = random(200, 380);
+    let hRight = hLeft + random(-140, 140); // right side independently taller or shorter
+    let topLean = random(-120, 120);        // how much higher/lower the right top is
+
     let cx = 670 + random(-80, 80);
     let lx = cx - shapeW / 2;
     let rx = cx + shapeW / 2;
 
     let vertices = createQuadVertices(
       lx + random(-20, 20), rowY + jitter,
-      rx + random(-20, 20), rowY + random(-15, 15) + jitter,
-      rx + random(-35, 35), rowY + shapeH + jitter,
-      lx + random(-35, 35), rowY + shapeH + random(-15, 15) + jitter
+      rx + random(-20, 20), rowY + topLean + jitter,
+      rx + random(-30, 30), rowY + topLean + hRight + jitter,
+      lx + random(-30, 30), rowY + hLeft + jitter
     );
     allShapes.push({ vertices });
   }
