@@ -723,41 +723,34 @@ function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
   }
 }
 
-// Version 8 — 1–5 shapes, exact v3 quad formula, rhythmically distributed
+// Version 8 — 1–5 shapes using the same size variable and exact v3 quad formula,
+// spread sparsely across the full canvas (one per evenly-distributed row, random H position)
 function generateShapes8() {
-  let lineHeightMult = parseInt(document.getElementById('lineHeight').value) / 80;
+  let lineHeightMult  = parseInt(document.getElementById('lineHeight').value) / 80;
   let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50;
   let baselineJitter  = parseInt(document.getElementById('baselineJitter').value);
 
-  let count  = floor(random(1, 6)); // 1–5
-  // Fixed small scale so shapes are large on the A3 canvas —
-  // same proportions as v3 formula, just bigger absolute size
-  let s      = random(0.35, 0.6);
-  let margin = 80;
+  let count = floor(random(1, 6)); // 1–5
 
-  // The v3 formula places the visible shape at rowY+120/s (top) to rowY+400/s (bottom).
-  // Anchor rowStart so the first shape's visible top sits at the margin,
-  // and rowEnd so the last shape's visible bottom sits at the canvas bottom margin.
-  let rowStart = margin - 120 / s;
-  let rowEnd   = 1680 - margin - 400 / s;
-  let rowSpan  = (rowEnd - rowStart) * lineHeightMult;
-  let rowStep  = count > 1 ? rowSpan / (count - 1) : 0;
+  // Vertical: divide v3's row range into count equal bands, one shape per band
+  let rowRange = 1400 * lineHeightMult;
+  let rowStep  = rowRange / max(count, 1);
 
   for (let i = 0; i < count; i++) {
-    let rowY   = rowStart + i * rowStep;
-    let jitter = random(-baselineJitter * 6, baselineJitter * 6);
+    // Place each shape in its vertical band with slight random offset
+    let rowY   = i * rowStep + random(0, rowStep * 0.4);
+    let jitter = random(-baselineJitter, baselineJitter);
 
-    // Horizontal rhythm: one position per row, stepped by wordSpacingMult
-    // quadX start matches v3's starting point scaled to the larger size
-    let quadX = 420 / s + random(0, 90 * wordSpacingMult * 3);
-    quadX = constrain(quadX, 420 / s, 1340);
+    // Horizontal: spread quadX across v3's full horizontal range
+    let quadX = random(420 / size, 1410);
+    quadX = constrain(quadX * wordSpacingMult, 420 / size, 1410);
 
     // Exact same vertex formula as generateShapes3
     let vertices = createQuadVertices(
-      quadX - random(200, 400) / s, rowY + random(180, 200) / s + jitter,
-      quadX - random(80,  240) / s, rowY + random(120, 240) / s + jitter,
-      quadX - random(80,  420) / s, rowY + 400 / s             + jitter,
-      quadX - random(220, 400) / s, rowY + 400 / s             + jitter
+      quadX - random(200, 400) / size, rowY + random(180, 200) / size + jitter,
+      quadX - random(80,  240) / size, rowY + random(120, 240) / size + jitter,
+      quadX - random(80,  420) / size, rowY + 400 / size              + jitter,
+      quadX - random(220, 400) / size, rowY + 400 / size              + jitter
     );
     allShapes.push({ vertices });
   }
