@@ -237,7 +237,7 @@
         <div class="settings-group-inner">
           <div class="setting">
             <label>Version (1-7)</label>
-            <input type="number" id="version" min="1" max="7" value="3" onchange="regenerate()">
+            <input type="number" id="version" min="1" max="8" value="3" onchange="regenerate()">
           </div>
           <div class="divider"></div>
           <div class="setting checkbox-row">
@@ -671,7 +671,9 @@ function generateOriginalLayout(version) {
   
   let score = version;
   
-  if (score >= 7) {
+  if (score >= 8) {
+    generateShapes8();
+  } else if (score >= 7) {
     for (let rowY = -40; rowY <= 1480; rowY += (cnt14) * cnt20 / size * lineHeightMult) {
       generateShapes7(rowY, wordSpacingMult, baselineJitter);
     }
@@ -718,6 +720,34 @@ function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
       );
       allShapes.push({ vertices });
     }
+  }
+}
+
+// Version 8 — 1–5 large polygons, composed for A3 / 11×17 vertical format
+function generateShapes8() {
+  let margin = 120;
+  let count = floor(random(1, 6)); // 1–5
+
+  for (let i = 0; i < count; i++) {
+    let cx = random(margin + 160, width  - margin - 160);
+    let cy = random(margin + 160, height - margin - 160);
+
+    let numVerts  = floor(random(5, 13));
+    let radiusX   = random(160, 520);
+    let radiusY   = random(160, 520);
+    let rotation  = random(TWO_PI);
+
+    let vertices = [];
+    for (let j = 0; j < numVerts; j++) {
+      // Slightly uneven angular spacing for organic feel
+      let angle = rotation + (j / numVerts) * TWO_PI + random(-0.28, 0.28);
+      let r = random(0.5, 1.0);
+      vertices.push({
+        x: cx + cos(angle) * radiusX * r,
+        y: cy + sin(angle) * radiusY * r
+      });
+    }
+    allShapes.push({ vertices });
   }
 }
 
