@@ -1533,7 +1533,8 @@ function renderOnly() {
 }
 
 function mousePressed() {
-  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+  let zoom = parseFloat(document.getElementById('canvas-container').style.zoom) || 1;
+  if (mouseX >= 0 && mouseX <= width * zoom && mouseY >= 0 && mouseY <= height * zoom) {
     regenerate();
   }
 }
