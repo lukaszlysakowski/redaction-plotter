@@ -741,8 +741,8 @@ function generateShapes8() {
     let rowEndX = random(900, 1340); // wide band, nearly full canvas
     let jitter  = random(-baselineJitter, baselineJitter);
 
-    // sz <= 0.4 ensures height = 200/sz >= 500px
-    let sz = constrain(size, 0.2, 0.4);
+    // Each row gets its own height: sz in 0.25–0.4 gives 500px–800px
+    let sz = random(0.25, 0.4);
 
     // Collect row shapes into temp array, then center them on the canvas
     let rowShapes = [];
@@ -750,7 +750,7 @@ function generateShapes8() {
 
     // v7's exact quad formula: dense overlapping angular parallelograms
     for (let pass = 0; pass < glyphcount; pass++) {
-      for (let quadX = 250 / sz; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
+      for (let quadX = 100; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
         let vertices = createQuadVertices(
           random(quadX - 200 / sz, quadX - 100 / sz), random(rowY + 90 / sz,  rowY + 100 / sz) + jitter,
           random(quadX - 20  / sz, quadX - 120 / sz), random(rowY + random(90, 120) / sz, rowY + 110 / sz) + jitter,
