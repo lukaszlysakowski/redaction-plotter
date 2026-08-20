@@ -762,10 +762,14 @@ function generateShapes8() {
       }
     }
 
-    // Center the row horizontally on the 1340px canvas
+    // Center the row, then scale horizontally if it exceeds canvas width
     let offsetX = (1340 / 2) - (minX + maxX) / 2;
+    let rowWidth = maxX - minX;
+    let scaleX = rowWidth > 1340 ? 1340 / rowWidth : 1.0;
     for (let shape of rowShapes) {
-      for (let v of shape.vertices) v.x += offsetX;
+      for (let v of shape.vertices) {
+        v.x = 670 + ((v.x + offsetX) - 670) * scaleX;
+      }
       allShapes.push(shape);
     }
   }
