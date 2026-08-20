@@ -737,37 +737,21 @@ function generateShapes8() {
   let rowStep  = totalH / rowCount;
 
   for (let i = 0; i < rowCount; i++) {
-    let rowY = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
-    let jitter = random(-baselineJitter, baselineJitter);
+    let rowY    = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
+    let rowEndX = random(900, 1340); // wide band, nearly full canvas
+    let jitter  = random(-baselineJitter, baselineJitter);
 
-    // Each row: many overlapping wide quads (like v7's dense glyph clusters)
-    let quadsInRow = floor(random(8, 22));
-
-    // Row-level base geometry — each quad varies slightly around this
-    let baseW   = random(700, 1080) * wordSpacingMult;
-    baseW = constrain(baseW, 620, 1150);
-    let baseLean = random(-120, 120); // diagonal lean across width
-    let baseH    = random(200, 340);
-    let baseCx   = 670 + random(-70, 70);
-
-    for (let q = 0; q < quadsInRow; q++) {
-      let cx   = baseCx   + random(-25, 25);
-      let w    = baseW    + random(-60, 60);
-      let lean = baseLean + random(-35, 35);
-      let hL   = baseH    + random(-50, 50);
-      let hR   = baseH    + random(-50, 50);
-      let dy   = random(-18, 18); // per-quad vertical drift within row
-
-      let lx = cx - w / 2;
-      let rx = cx + w / 2;
-
-      let vertices = createQuadVertices(
-        lx + random(-12, 12), rowY + dy + jitter,
-        rx + random(-12, 12), rowY + lean + dy + jitter,
-        rx + random(-20, 20), rowY + lean + hR + dy + jitter,
-        lx + random(-20, 20), rowY + hL  + dy + jitter
-      );
-      allShapes.push({ vertices });
+    // v7's exact quad formula: dense overlapping angular parallelograms
+    for (let pass = 0; pass < glyphcount; pass++) {
+      for (let quadX = 250 / size; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
+        let vertices = createQuadVertices(
+          random(quadX - 200 / size, quadX - 100 / size), random(rowY + 90 / size,  rowY + 100 / size) + jitter,
+          random(quadX - 20  / size, quadX - 120 / size), random(rowY + random(90, 120) / size, rowY + 110 / size) + jitter,
+          random(quadX - random(50, 100) / size, quadX - random(40, 210) / size), random(rowY + 200 / size, rowY + 200 / size) + jitter,
+          random(quadX - 200 / size, quadX - 120 / size), random(rowY + 200 / size, rowY + 200 / size) + jitter
+        );
+        allShapes.push({ vertices });
+      }
     }
   }
 }
