@@ -738,31 +738,62 @@ function generateShapes8() {
 
   for (let i = 0; i < rowCount; i++) {
     let rowY    = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
-    let rowEndX = random(900, 1340); // wide band, nearly full canvas
+    let rowEndX = random(700, 1340);
     let jitter  = random(-baselineJitter, baselineJitter);
 
-    // Each row gets its own height: sz in 0.25–0.4 gives 500px–800px
-    let sz = random(0.25, 0.4);
+    // Per-row independent parameters — break the shared-globals sameness
+    let sz           = random(0.2, 0.45);           // height: 444–1000px
+    let localGlyph   = random(1.5, 10);             // density passes
+    let localCnt2    = random(0.5, 3);              // spacing rhythm
+    let localSpacing = random(space);               // pick one spacing value
+    let style        = floor(random(4));            // 0=v7, 1=v3, 2=v2, 3=mixed-h
 
-    // Collect row shapes into temp array, then center them on the canvas
     let rowShapes = [];
     let minX = Infinity, maxX = -Infinity;
 
-    // v7's exact quad formula: dense overlapping angular parallelograms
-    for (let pass = 0; pass < glyphcount; pass++) {
-      for (let quadX = 100; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
-        let vertices = createQuadVertices(
-          random(quadX - 200 / sz, quadX - 100 / sz), random(rowY + 90 / sz,  rowY + 100 / sz) + jitter,
-          random(quadX - 20  / sz, quadX - 120 / sz), random(rowY + random(90, 120) / sz, rowY + 110 / sz) + jitter,
-          random(quadX - random(50, 100) / sz, quadX - random(40, 210) / sz), random(rowY + 200 / sz, rowY + 200 / sz) + jitter,
-          random(quadX - 200 / sz, quadX - 120 / sz), random(rowY + 200 / sz, rowY + 200 / sz) + jitter
-        );
+    for (let pass = 0; pass < localGlyph; pass++) {
+      for (let quadX = 100; quadX <= rowEndX; quadX += localCnt2 * localSpacing * wordSpacingMult) {
+        let vertices;
+        if (style === 0) {
+          // v7-style: angular lean, flat bottom
+          vertices = createQuadVertices(
+            random(quadX - 200/sz, quadX - 100/sz), random(rowY + 90/sz, rowY + 100/sz) + jitter,
+            random(quadX - 20/sz,  quadX - 120/sz), random(rowY + random(90,120)/sz, rowY + 110/sz) + jitter,
+            random(quadX - random(50,100)/sz, quadX - random(40,210)/sz), rowY + 200/sz + jitter,
+            random(quadX - 200/sz, quadX - 120/sz), rowY + 200/sz + jitter
+          );
+        } else if (style === 1) {
+          // v3-style: tall parallel slabs
+          vertices = createQuadVertices(
+            quadX - random(200,400)/sz, rowY + random(180,200)/sz + jitter,
+            quadX - random(80,240)/sz,  rowY + random(120,240)/sz + jitter,
+            quadX - random(80,420)/sz,  rowY + 400/sz + jitter,
+            quadX - random(220,400)/sz, rowY + 400/sz + jitter
+          );
+        } else if (style === 2) {
+          // v2-style: medium, rounder lean
+          vertices = createQuadVertices(
+            quadX - random(100,200)/sz, rowY + random(90,100)/sz + jitter,
+            quadX - random(20,120)/sz,  rowY + random(90,120)/sz + jitter,
+            quadX - random(40,210)/sz,  rowY + 200/sz + jitter,
+            quadX - random(120,200)/sz, rowY + 200/sz + jitter
+          );
+        } else {
+          // Mixed: each quad has its own random height — creates varied strata
+          let h = random(150, 420);
+          vertices = createQuadVertices(
+            quadX - random(150,350)/sz, rowY + random(0,60)/sz  + jitter,
+            quadX - random(10,150)/sz,  rowY + random(0,90)/sz  + jitter,
+            quadX - random(30,280)/sz,  rowY + h/sz             + jitter,
+            quadX - random(150,350)/sz, rowY + h/sz             + jitter
+          );
+        }
         for (let v of vertices) { minX = min(minX, v.x); maxX = max(maxX, v.x); }
         rowShapes.push({ vertices });
       }
     }
 
-    // Center the row, then scale horizontally if it exceeds canvas width
+    // Center + constrain to canvas width
     let offsetX = (1340 / 2) - (minX + maxX) / 2;
     let rowWidth = maxX - minX;
     let scaleX = rowWidth > 1340 ? 1340 / rowWidth : 1.0;
