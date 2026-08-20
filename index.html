@@ -730,36 +730,45 @@ function generateShapes8() {
   let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50;
   let baselineJitter  = parseInt(document.getElementById('baselineJitter').value);
 
-  let count = floor(random(1, 6)); // 1–5
+  let rowCount = floor(random(1, 6)); // 1–5 rows
 
   let totalH   = 1500 * lineHeightMult;
   let topStart = (1680 - totalH) / 2;
-  let rowStep  = totalH / count;
+  let rowStep  = totalH / rowCount;
 
-  for (let i = 0; i < count; i++) {
-    let rowY   = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
+  for (let i = 0; i < rowCount; i++) {
+    let rowY = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
     let jitter = random(-baselineJitter, baselineJitter);
 
-    // Wide horizontal band with v1-7 angular character:
-    // left and right sides at different heights, top edge is diagonal not flat
-    let shapeW = random(780, 1080) * wordSpacingMult;
-    shapeW = constrain(shapeW, 680, 1160);
+    // Each row: many overlapping wide quads (like v7's dense glyph clusters)
+    let quadsInRow = floor(random(8, 22));
 
-    let hLeft  = random(200, 380);
-    let hRight = hLeft + random(-140, 140); // right side independently taller or shorter
-    let topLean = random(-120, 120);        // how much higher/lower the right top is
+    // Row-level base geometry — each quad varies slightly around this
+    let baseW   = random(700, 1080) * wordSpacingMult;
+    baseW = constrain(baseW, 620, 1150);
+    let baseLean = random(-120, 120); // diagonal lean across width
+    let baseH    = random(200, 340);
+    let baseCx   = 670 + random(-70, 70);
 
-    let cx = 670 + random(-80, 80);
-    let lx = cx - shapeW / 2;
-    let rx = cx + shapeW / 2;
+    for (let q = 0; q < quadsInRow; q++) {
+      let cx   = baseCx   + random(-25, 25);
+      let w    = baseW    + random(-60, 60);
+      let lean = baseLean + random(-35, 35);
+      let hL   = baseH    + random(-50, 50);
+      let hR   = baseH    + random(-50, 50);
+      let dy   = random(-18, 18); // per-quad vertical drift within row
 
-    let vertices = createQuadVertices(
-      lx + random(-20, 20), rowY + jitter,
-      rx + random(-20, 20), rowY + topLean + jitter,
-      rx + random(-30, 30), rowY + topLean + hRight + jitter,
-      lx + random(-30, 30), rowY + hLeft + jitter
-    );
-    allShapes.push({ vertices });
+      let lx = cx - w / 2;
+      let rx = cx + w / 2;
+
+      let vertices = createQuadVertices(
+        lx + random(-12, 12), rowY + dy + jitter,
+        rx + random(-12, 12), rowY + lean + dy + jitter,
+        rx + random(-20, 20), rowY + lean + hR + dy + jitter,
+        lx + random(-20, 20), rowY + hL  + dy + jitter
+      );
+      allShapes.push({ vertices });
+    }
   }
 }
 
