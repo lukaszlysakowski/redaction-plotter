@@ -258,7 +258,7 @@
             <label>Fibonacci Spiral</label>
           </div>
           <div class="setting checkbox-row">
-            <input type="checkbox" id="autoFitHeight" onchange="regenerate()">
+            <input type="checkbox" id="autoFitHeight" onchange="applyAutoFitHeight()">
             <label>Auto-fit Height</label>
           </div>
           <div class="setting">
@@ -1588,6 +1588,26 @@ function updateSeedDisplay() {
 }
 
 function renderOnly() {
+  renderShapes();
+}
+
+function applyAutoFitHeight() {
+  let paperFormat = document.getElementById('paperFormat').value;
+  let autoFit = document.getElementById('autoFitHeight').checked;
+  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
+    let maxY = 0;
+    for (let shape of allShapes) {
+      for (let v of shape.vertices) {
+        if (v.y > maxY) maxY = v.y;
+      }
+    }
+    let requiredHeight = Math.ceil(maxY + 100);
+    if (requiredHeight !== height) {
+      resizeCanvas(1340, requiredHeight);
+    }
+  } else if (!autoFit && paperFormat === 'none' && height !== 1680) {
+    resizeCanvas(1340, 1680);
+  }
   renderShapes();
 }
 
