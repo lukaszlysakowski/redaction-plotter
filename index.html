@@ -262,6 +262,14 @@
             <label>Auto-fit Height</label>
           </div>
           <div class="setting">
+            <label>Paper Format</label>
+            <select id="paperFormat" onchange="regenerate()">
+              <option value="none">None</option>
+              <option value="a3">A3 Portrait</option>
+              <option value="11x17">11×17 Portrait</option>
+            </select>
+          </div>
+          <div class="setting">
             <label>Line Height</label>
             <input type="range" id="lineHeight" min="40" max="150" value="80" oninput="updateRangeDisplay(this); regenerate()">
             <span class="range-value" id="lineHeight-val">80</span>
@@ -733,7 +741,7 @@ function generateShapes8() {
   let rowCount = floor(random(1, 6)); // 1–5 rows
 
   let totalH   = 1500 * lineHeightMult;
-  let topStart = (1680 - totalH) / 2;
+  let topStart = (height - totalH) / 2;
   let rowStep  = totalH / rowCount;
 
   for (let i = 0; i < rowCount; i++) {
@@ -1536,27 +1544,35 @@ function regenerate() {
   currentSeed = Date.now();
   updateSeedDisplay();
   
-  // Reset canvas to default height before generating
-  let defaultHeight = 1680;
-  if (height !== defaultHeight) {
-    resizeCanvas(1340, defaultHeight);
+  // Set canvas height: paper format takes priority, then auto-fit, then default
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297); // ~1895px
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11); // ~2069px
+  } else {
+    targetHeight = 1680;
   }
-  
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
+
   generateShapes();
-  
-  // Auto-fit height if enabled
+
+  // Auto-fit height if enabled (only when no paper format is active)
   let autoFit = document.getElementById('autoFitHeight').checked;
-  if (autoFit && allShapes.length > 0) {
+  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
     let maxY = 0;
     for (let shape of allShapes) {
       for (let v of shape.vertices) {
         if (v.y > maxY) maxY = v.y;
       }
     }
-    
+
     // Add padding at bottom
     let requiredHeight = Math.ceil(maxY + 100);
-    
+
     if (requiredHeight > height) {
       resizeCanvas(1340, requiredHeight);
       console.log('Canvas resized to height:', requiredHeight);
@@ -1592,6 +1608,7 @@ function getSettingsObject() {
     textMode: document.getElementById('textMode').value,
     spiralLayout: document.getElementById('spiralLayout').checked,
     autoFitHeight: document.getElementById('autoFitHeight').checked,
+    paperFormat: document.getElementById('paperFormat').value,
     lineHeight: document.getElementById('lineHeight').value,
     wordSpacing: document.getElementById('wordSpacing').value,
     baselineJitter: document.getElementById('baselineJitter').value,
@@ -1616,6 +1633,7 @@ function applySettings(settings) {
   document.getElementById('textMode').value = settings.textMode || 'regular';
   document.getElementById('spiralLayout').checked = settings.spiralLayout || false;
   document.getElementById('autoFitHeight').checked = settings.autoFitHeight || false;
+  document.getElementById('paperFormat').value = settings.paperFormat || 'none';
   document.getElementById('lineHeight').value = settings.lineHeight;
   document.getElementById('wordSpacing').value = settings.wordSpacing;
   document.getElementById('baselineJitter').value = settings.baselineJitter;
@@ -1662,30 +1680,38 @@ function regenerateFromPreset() {
   // Same as regenerate but doesn't create a new seed
   updateSeedDisplay();
   
-  let defaultHeight = 1680;
-  if (height !== defaultHeight) {
-    resizeCanvas(1340, defaultHeight);
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297);
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11);
+  } else {
+    targetHeight = 1680;
   }
-  
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
+
   generateShapes();
-  
+
   let autoFit = document.getElementById('autoFitHeight').checked;
-  if (autoFit && allShapes.length > 0) {
+  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
     let maxY = 0;
     for (let shape of allShapes) {
       for (let v of shape.vertices) {
         if (v.y > maxY) maxY = v.y;
       }
     }
-    
+
     let requiredHeight = Math.ceil(maxY + 100);
-    
+
     if (requiredHeight > height) {
       resizeCanvas(1340, requiredHeight);
       console.log('Canvas resized to height:', requiredHeight);
     }
   }
-  
+
   renderShapes();
 }
 
