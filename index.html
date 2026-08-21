@@ -263,7 +263,7 @@
           </div>
           <div class="setting">
             <label>Paper Format</label>
-            <select id="paperFormat" onchange="regenerate()">
+            <select id="paperFormat" onchange="applyPaperFormat()">
               <option value="none">None</option>
               <option value="a3">A3 Portrait</option>
               <option value="11x17">11×17 Portrait</option>
@@ -1588,6 +1588,22 @@ function updateSeedDisplay() {
 }
 
 function renderOnly() {
+  renderShapes();
+}
+
+function applyPaperFormat() {
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297);
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11);
+  } else {
+    targetHeight = 1680;
+  }
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
   renderShapes();
 }
 
