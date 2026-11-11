@@ -68,3 +68,7 @@ only path structure and order change — the optimized SVG's points match the ra
 `OPT_EPS` (near-coincident segments under 0.1px dedupe to one survivor; nothing moves further than
 that tolerance). `OPT_EPS` (0.1px) is the shared merge/dedupe tolerance; layers over `OPT_MAX_SORT`
 (20000) skip the sort to stay responsive.
+
+The "Plot" button (snippet at the end of `index.html`) sends this optimized SVG to the local AxiDraw
+plot service in `~/claude/self-redaction/plotter`. It appears only when the page is served from
+localhost (e.g. `npx serve . --listen 3467`), not on GitHub Pages or from `file://`.
