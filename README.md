@@ -42,7 +42,7 @@ reduction. Use the plain **Export SVG** if you want the raw, unmerged paths for 
 
 ## Plotting
 
-The **Plot** button appears when the page is served from localhost (e.g. `npx serve . --listen 3456`). It requires [`plot_server.py`](https://github.com/lukaszlysakowski/self-redaction) running locally on port 8765, which talks to the plotter over USB.
+The **Plot** button is always visible. It activates automatically when [`plot_server.py`](https://github.com/lukaszlysakowski/self-redaction) is running locally on port 8765, which talks to the plotter over USB. This works both from the GitHub Pages version and from a locally-served copy.
 
 The plot panel lets you:
 
