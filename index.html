@@ -240,27 +240,6 @@
             <input type="number" id="version" min="1" max="8" value="3" onchange="regenerate()">
           </div>
           <div class="divider"></div>
-          <div class="setting checkbox-row">
-            <input type="checkbox" id="textLayout" onchange="regenerate()">
-            <label>Text-like Layout</label>
-          </div>
-          <div class="setting">
-            <label>Text Mode</label>
-            <select id="textMode" onchange="regenerate()">
-              <option value="regular">Regular</option>
-              <option value="fibSpacing">Fibonacci Spacing</option>
-              <option value="fibWords">Fibonacci Words</option>
-              <option value="fibBoth">Fibonacci Both</option>
-            </select>
-          </div>
-          <div class="setting checkbox-row">
-            <input type="checkbox" id="spiralLayout" onchange="regenerate()">
-            <label>Fibonacci Spiral</label>
-          </div>
-          <div class="setting checkbox-row">
-            <input type="checkbox" id="autoFitHeight" onchange="applyAutoFitHeight()">
-            <label>Auto-fit Height</label>
-          </div>
           <div class="setting">
             <label>Paper Format</label>
             <select id="paperFormat" onchange="applyPaperFormat()">
@@ -268,21 +247,6 @@
               <option value="a3">A3 Portrait</option>
               <option value="11x17">11×17 Portrait</option>
             </select>
-          </div>
-          <div class="setting">
-            <label>Line Height</label>
-            <input type="range" id="lineHeight" min="40" max="150" value="80" oninput="updateRangeDisplay(this); regenerate()">
-            <span class="range-value" id="lineHeight-val">80</span>
-          </div>
-          <div class="setting">
-            <label>Word Spacing</label>
-            <input type="range" id="wordSpacing" min="20" max="100" value="50" oninput="updateRangeDisplay(this); regenerate()">
-            <span class="range-value" id="wordSpacing-val">50</span>
-          </div>
-          <div class="setting">
-            <label>Baseline Jitter</label>
-            <input type="range" id="baselineJitter" min="0" max="20" value="5" oninput="updateRangeDisplay(this); regenerate()">
-            <span class="range-value" id="baselineJitter-val">5</span>
           </div>
         </div>
       </div>
@@ -417,9 +381,7 @@ function generateShapes() {
   shapeScribbleSeeds = [];
   
   let version = parseInt(document.getElementById('version').value);
-  let useTextLayout = document.getElementById('textLayout').checked;
-  let useSpiralLayout = document.getElementById('spiralLayout').checked;
-  
+
   // Initialize random variables
   asemic12 = random(6, 12);
   cnt2 = random(1, 2);
@@ -456,15 +418,7 @@ function generateShapes() {
   let colorsPalettes = [colors4, colors5, colors6, colors7, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
   let colorszPalettes = [colors4, colors5, colors6, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
   
-  if (useSpiralLayout) {
-    // Generate original shapes first, then reposition along spiral
-    generateOriginalLayout(version);
-    applySpiralTransform();
-  } else if (useTextLayout) {
-    generateTextLayout(version);
-  } else {
-    generateOriginalLayout(version);
-  }
+  generateOriginalLayout(version);
   
   // Assign colors, angles, and scribble seeds for consistency
   for (let i = 0; i < allShapes.length; i++) {
@@ -479,203 +433,14 @@ function generateShapes() {
   }
   
   shapesGenerated = true;
-  let layoutType = useSpiralLayout ? 'spiral layout' : (useTextLayout ? 'text layout' : 'original layout');
-  console.log(`Generated ${allShapes.length} shapes (${layoutType})`);
+  console.log(`Generated ${allShapes.length} shapes`);
 }
 
-function generateTextLayout(version) {
-  let lineHeight = parseInt(document.getElementById('lineHeight').value);
-  let wordSpacing = parseInt(document.getElementById('wordSpacing').value);
-  let baselineJitter = parseInt(document.getElementById('baselineJitter').value);
-  let textMode = document.getElementById('textMode').value;
-  
-  // Fibonacci sequence for spacing and word lengths
-  let fibonacci = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
-  let fibIndex = 0;
-  let fibWordIndex = 0;
-  
-  // Margins
-  let marginLeft = 80;
-  let marginRight = 80;
-  let marginTop = 100;
-  let marginBottom = 100;
-  
-  let pageWidth = width - marginLeft - marginRight;
-  let pageHeight = height - marginTop - marginBottom;
-  
-  // Glyph size ranges based on version
-  let glyphWidth, glyphHeight;
-  switch(version) {
-    case 7: glyphWidth = [20, 45]; glyphHeight = [30, 55]; break;
-    case 6: glyphWidth = [30, 60]; glyphHeight = [40, 70]; break;
-    case 5: glyphWidth = [40, 80]; glyphHeight = [50, 90]; break;
-    case 4: glyphWidth = [35, 70]; glyphHeight = [45, 80]; break;
-    case 3: glyphWidth = [25, 55]; glyphHeight = [35, 65]; break;
-    case 2: glyphWidth = [20, 45]; glyphHeight = [30, 55]; break;
-    default: glyphWidth = [20, 40]; glyphHeight = [30, 50]; break;
-  }
-  
-  let y = marginTop;
-  let lineIndex = 0;
-  
-  while (y < height - marginBottom - glyphHeight[1]) {
-    let x = marginLeft;
-    let baseline = y + glyphHeight[1]; // baseline at bottom of line
-    
-    // Generate words for this line
-    while (x < width - marginRight - glyphWidth[1]) {
-      // Word length based on mode
-      let wordLength;
-      if (textMode === 'fibWords' || textMode === 'fibBoth') {
-        // Fibonacci word lengths: 1, 1, 2, 3, 5, 8, then repeat
-        wordLength = fibonacci[fibWordIndex % 6];
-        fibWordIndex++;
-      } else {
-        // Regular: 2-6 glyphs
-        wordLength = floor(random(2, 7));
-      }
-      
-      let wordStart = x;
-      
-      for (let g = 0; g < wordLength; g++) {
-        if (x >= width - marginRight - glyphWidth[1]) break;
-        
-        let gw = random(glyphWidth[0], glyphWidth[1]);
-        let gh = random(glyphHeight[0], glyphHeight[1]);
-        
-        // Baseline jitter
-        let jitter = random(-baselineJitter, baselineJitter);
-        
-        // Create glyph aligned to baseline
-        let glyphTop = baseline - gh + jitter;
-        let glyphBottom = baseline + jitter;
-        
-        // Add ascenders/descenders occasionally
-        if (random() < 0.15) {
-          // Ascender
-          glyphTop -= random(10, 25);
-        }
-        if (random() < 0.1) {
-          // Descender
-          glyphBottom += random(8, 20);
-        }
-        
-        let vertices = createQuadVerticesTextStyle(x, glyphTop, gw, glyphBottom - glyphTop);
-        allShapes.push({ vertices, isGlyph: true });
-        
-        // Letter spacing - Fibonacci or regular
-        let letterSpace;
-        if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
-          letterSpace = fibonacci[g % fibonacci.length] * 2;
-        } else {
-          letterSpace = random(3, 10);
-        }
-        x += gw + letterSpace;
-      }
-      
-      // Word spacing - Fibonacci or regular
-      let wSpace;
-      if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
-        wSpace = fibonacci[(fibWordIndex + 3) % 7] * 8;
-      } else {
-        wSpace = wordSpacing + random(-10, 20);
-      }
-      x += wSpace;
-      
-      // Occasionally add extra space (like a paragraph indent or gap)
-      if (random() < 0.08) {
-        x += wordSpacing * 2;
-      }
-    }
-    
-    // Line height - Fibonacci or regular
-    let currentLineHeight;
-    if (textMode === 'fibSpacing' || textMode === 'fibBoth') {
-      // Scale Fibonacci numbers to reasonable line heights
-      currentLineHeight = fibonacci[(lineIndex % 6) + 2] * 4 + 20;
-    } else {
-      currentLineHeight = lineHeight + random(-5, 10);
-    }
-    
-    y += currentLineHeight;
-    lineIndex++;
-  }
-}
-
-function createQuadVerticesTextStyle(x, y, w, h) {
-  // Create slightly irregular quad for more organic look
-  let skew = random(-5, 5);
-  let taper = random(0.85, 1.0);
-  
-  return [
-    { x: x + random(-2, 2), y: y + random(-2, 2) },
-    { x: x + w * taper + skew + random(-2, 2), y: y + random(-2, 2) },
-    { x: x + w + skew + random(-3, 3), y: y + h + random(-2, 2) },
-    { x: x + random(-2, 2), y: y + h + random(-2, 2) }
-  ];
-}
-
-function applySpiralTransform() {
-  // Golden angle for phyllotaxis spiral
-  let goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 137.5 degrees in radians
-  
-  // Center of canvas
-  let centerX = width / 2;
-  let centerY = height / 2;
-  
-  // Get spacing from controls
-  let wordSpacing = parseInt(document.getElementById('wordSpacing').value);
-  let spacingMult = map(wordSpacing, 20, 100, 4, 10);
-  
-  // Reposition each shape along the spiral
-  for (let i = 0; i < allShapes.length; i++) {
-    let shape = allShapes[i];
-    
-    // Calculate spiral position for this shape
-    let angle = i * goldenAngle;
-    let radius = spacingMult * Math.sqrt(i);
-    
-    // New center position on spiral
-    let spiralX = centerX + radius * Math.cos(angle);
-    let spiralY = centerY + radius * Math.sin(angle);
-    
-    // Calculate current shape center
-    let currentCenterX = 0;
-    let currentCenterY = 0;
-    for (let v of shape.vertices) {
-      currentCenterX += v.x;
-      currentCenterY += v.y;
-    }
-    currentCenterX /= shape.vertices.length;
-    currentCenterY /= shape.vertices.length;
-    
-    // Calculate rotation to follow spiral tangent
-    let tangentAngle = angle + Math.PI / 2;
-    let cos = Math.cos(tangentAngle);
-    let sin = Math.sin(tangentAngle);
-    
-    // Transform each vertex: translate to origin, rotate, translate to spiral position
-    for (let v of shape.vertices) {
-      // Translate to origin (relative to shape center)
-      let relX = v.x - currentCenterX;
-      let relY = v.y - currentCenterY;
-      
-      // Rotate around origin
-      let rotX = relX * cos - relY * sin;
-      let rotY = relX * sin + relY * cos;
-      
-      // Translate to spiral position
-      v.x = spiralX + rotX;
-      v.y = spiralY + rotY;
-    }
-  }
-}
 
 function generateOriginalLayout(version) {
-  // Get override values from controls
-  let lineHeightMult = parseInt(document.getElementById('lineHeight').value) / 80; // normalize around default of 80
-  let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50; // normalize around default of 50
-  let baselineJitter = parseInt(document.getElementById('baselineJitter').value);
+  let lineHeightMult = 1.0;
+  let wordSpacingMult = 1.0;
+  let baselineJitter = 5;
   
   let score = version;
   
@@ -734,9 +499,9 @@ function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
 // Version 8 — 1–5 shapes using the same size variable and exact v3 quad formula,
 // spread sparsely across the full canvas (one per evenly-distributed row, random H position)
 function generateShapes8() {
-  let lineHeightMult  = parseInt(document.getElementById('lineHeight').value) / 80;
-  let wordSpacingMult = parseInt(document.getElementById('wordSpacing').value) / 50;
-  let baselineJitter  = parseInt(document.getElementById('baselineJitter').value);
+  let lineHeightMult  = 1.0;
+  let wordSpacingMult = 1.0;
+  let baselineJitter  = 5;
 
   let rowCount = floor(random(1, 6)); // 1–5 rows
 
@@ -1560,25 +1325,6 @@ function regenerate() {
 
   generateShapes();
 
-  // Auto-fit height if enabled (only when no paper format is active)
-  let autoFit = document.getElementById('autoFitHeight').checked;
-  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
-    let maxY = 0;
-    for (let shape of allShapes) {
-      for (let v of shape.vertices) {
-        if (v.y > maxY) maxY = v.y;
-      }
-    }
-
-    // Add padding at bottom
-    let requiredHeight = Math.ceil(maxY + 100);
-
-    if (requiredHeight > height) {
-      resizeCanvas(1340, requiredHeight);
-      console.log('Canvas resized to height:', requiredHeight);
-    }
-  }
-  
   renderShapes();
 }
 
@@ -1588,26 +1334,6 @@ function updateSeedDisplay() {
 }
 
 function renderOnly() {
-  renderShapes();
-}
-
-function applyAutoFitHeight() {
-  let paperFormat = document.getElementById('paperFormat').value;
-  let autoFit = document.getElementById('autoFitHeight').checked;
-  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
-    let maxY = 0;
-    for (let shape of allShapes) {
-      for (let v of shape.vertices) {
-        if (v.y > maxY) maxY = v.y;
-      }
-    }
-    let requiredHeight = Math.ceil(maxY + 100);
-    if (requiredHeight !== height) {
-      resizeCanvas(1340, requiredHeight);
-    }
-  } else if (!autoFit && paperFormat === 'none' && height !== 1680) {
-    resizeCanvas(1340, 1680);
-  }
   renderShapes();
 }
 
@@ -1640,14 +1366,7 @@ function getSettingsObject() {
   return {
     seed: currentSeed,
     version: document.getElementById('version').value,
-    textLayout: document.getElementById('textLayout').checked,
-    textMode: document.getElementById('textMode').value,
-    spiralLayout: document.getElementById('spiralLayout').checked,
-    autoFitHeight: document.getElementById('autoFitHeight').checked,
     paperFormat: document.getElementById('paperFormat').value,
-    lineHeight: document.getElementById('lineHeight').value,
-    wordSpacing: document.getElementById('wordSpacing').value,
-    baselineJitter: document.getElementById('baselineJitter').value,
     fillStyle: document.getElementById('fillStyle').value,
     fillDensity: document.getElementById('fillDensity').value,
     hatchAngle: document.getElementById('hatchAngle').value,
@@ -1665,14 +1384,7 @@ function applySettings(settings) {
   }
   
   document.getElementById('version').value = settings.version;
-  document.getElementById('textLayout').checked = settings.textLayout;
-  document.getElementById('textMode').value = settings.textMode || 'regular';
-  document.getElementById('spiralLayout').checked = settings.spiralLayout || false;
-  document.getElementById('autoFitHeight').checked = settings.autoFitHeight || false;
   document.getElementById('paperFormat').value = settings.paperFormat || 'none';
-  document.getElementById('lineHeight').value = settings.lineHeight;
-  document.getElementById('wordSpacing').value = settings.wordSpacing;
-  document.getElementById('baselineJitter').value = settings.baselineJitter;
   document.getElementById('fillStyle').value = settings.fillStyle;
   document.getElementById('fillDensity').value = settings.fillDensity;
   document.getElementById('hatchAngle').value = settings.hatchAngle;
@@ -1730,24 +1442,6 @@ function regenerateFromPreset() {
   }
 
   generateShapes();
-
-  let autoFit = document.getElementById('autoFitHeight').checked;
-  if (autoFit && paperFormat === 'none' && allShapes.length > 0) {
-    let maxY = 0;
-    for (let shape of allShapes) {
-      for (let v of shape.vertices) {
-        if (v.y > maxY) maxY = v.y;
-      }
-    }
-
-    let requiredHeight = Math.ceil(maxY + 100);
-
-    if (requiredHeight > height) {
-      resizeCanvas(1340, requiredHeight);
-      console.log('Canvas resized to height:', requiredHeight);
-    }
-  }
-
   renderShapes();
 }
 
