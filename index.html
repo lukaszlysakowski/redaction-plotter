@@ -314,6 +314,26 @@
           </div>
         </div>
       </div>
+
+      <div class="settings-group">
+        <h3>Title (second pass)</h3>
+        <div class="settings-group-inner">
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="showTitle" checked onchange="renderOnly()">
+            <label>Show title</label>
+          </div>
+          <div class="setting">
+            <label>Size</label>
+            <input type="range" id="titleSize" min="8" max="30" value="16" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="titleSize-val">16</span>
+          </div>
+          <div class="setting">
+            <label>From bottom (%)</label>
+            <input type="range" id="titleFromBottom" min="1" max="15" value="4" step="0.5" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="titleFromBottom-val">4</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -352,11 +372,12 @@ function setup() {
   currentSeed = Date.now();
   noLoop();
   pixelDensity(1);
-  
+
   document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
   updatePresetDropdown();
   updateSeedDisplay();
 
+  loadTitleFont();
   generateShapes();
   renderShapes();
 }
@@ -434,6 +455,165 @@ function generateShapes() {
   
   shapesGenerated = true;
   console.log(`Generated ${allShapes.length} shapes`);
+}
+
+
+// ============== TITLE ==============
+
+let titleFont = null;
+
+function getTitleText() {
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const y = String(now.getFullYear()).slice(-2);
+  return `Redaction · @lukaszgraphz · ${m}.${d}.${y}`;
+}
+
+async function loadTitleFont() {
+  try {
+    const resp = await fetch('fonts/JetBrainsMonoThin.svg');
+    if (!resp.ok) return;
+    const text = await resp.text();
+    titleFont = parseSVGFont(text);
+    if (shapesGenerated) renderOnly();
+  } catch (e) {
+    console.warn('Title font not loaded:', e.message);
+  }
+}
+
+function parseSVGFont(svgText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const font = { glyphs: {}, defaultAdv: 378 };
+  const fontEl = doc.querySelector('font');
+  if (fontEl) font.defaultAdv = parseFloat(fontEl.getAttribute('horiz-adv-x') || 378);
+  for (const g of doc.querySelectorAll('glyph')) {
+    const u = g.getAttribute('unicode');
+    if (!u || u.length !== 1) continue;
+    const adv = parseFloat(g.getAttribute('horiz-adv-x') || font.defaultAdv);
+    font.glyphs[u] = { adv, strokes: parseGlyphStrokes(g.getAttribute('d') || '') };
+  }
+  // Measure cap height from H
+  const H = font.glyphs['H'];
+  if (H && H.strokes.length) {
+    const ys = H.strokes.flatMap(s => s.map(p => p.y));
+    font.capH = Math.max(...ys) - Math.min(...ys);
+  } else {
+    font.capH = 700;
+  }
+  return font;
+}
+
+function parseGlyphStrokes(d) {
+  const STEPS = 6;
+  const strokes = [];
+  const re = /([MLCZz])([^MLCZz]*)/g;
+  let m, cur = [0, 0];
+  while ((m = re.exec(d)) !== null) {
+    const cmd = m[1], nums = (m[2].match(/-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) || []).map(Number);
+    if (cmd === 'M') {
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        if (i === 0) strokes.push([]);
+        cur = [nums[i], nums[i+1]];
+        strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+      }
+    } else if (cmd === 'L') {
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        cur = [nums[i], nums[i+1]];
+        strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+      }
+    } else if (cmd === 'C') {
+      for (let i = 0; i + 5 < nums.length; i += 6) {
+        const p0 = cur.slice();
+        const [x1, y1, x2, y2, x3, y3] = nums.slice(i, i+6);
+        for (let k = 1; k <= STEPS; k++) {
+          const t = k / STEPS;
+          const a=(1-t)**3, b=3*t*(1-t)**2, c=3*t*t*(1-t), e=t**3;
+          cur = [a*p0[0]+b*x1+c*x2+e*x3, a*p0[1]+b*y1+c*y2+e*y3];
+          if (strokes.length) strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+        }
+        cur = [x3, y3];
+      }
+    }
+  }
+  return strokes.filter(s => s.length > 1);
+}
+
+// Build polylines for all chars in text; y is in canvas coords (y-down).
+// Returns { strokes: [[{x,y},...]], width }
+function layoutTitleStrokes(text, capPx, baseline) {
+  if (!titleFont) return { strokes: [], width: 0 };
+  const k = capPx / titleFont.capH;
+  const rawStrokes = [];  // before x-offset; x is in font units * k, y in canvas units
+  let penX = 0;
+  for (const ch of text) {
+    if (ch === '·') {
+      // Middle dot: manual small diamond at mid-cap height
+      const mid = titleFont.capH / 2;
+      const r = titleFont.capH * 0.06;
+      rawStrokes.push([
+        { x: (penX + font_adv(ch) * 0.5 - r) * k, y: baseline - mid * k },
+        { x: (penX + font_adv(ch) * 0.5) * k,     y: baseline - (mid + r) * k },
+        { x: (penX + font_adv(ch) * 0.5 + r) * k, y: baseline - mid * k },
+        { x: (penX + font_adv(ch) * 0.5) * k,     y: baseline - (mid - r) * k },
+        { x: (penX + font_adv(ch) * 0.5 - r) * k, y: baseline - mid * k },
+      ]);
+      penX += font_adv(ch);
+      continue;
+    }
+    const g = titleFont.glyphs[ch];
+    if (g && g.strokes.length) {
+      for (const s of g.strokes) {
+        rawStrokes.push(s.map(p => ({ x: (penX + p.x) * k, y: baseline - p.y * k })));
+      }
+    }
+    penX += g ? g.adv : titleFont.defaultAdv;
+  }
+  const totalW = penX * k;
+  return { strokes: rawStrokes, width: totalW };
+}
+
+function font_adv(ch) {
+  if (!titleFont) return 378;
+  return titleFont.glyphs[ch] ? titleFont.glyphs[ch].adv : titleFont.defaultAdv * 0.6;
+}
+
+function drawTitle() {
+  if (!document.getElementById('showTitle').checked) return;
+  if (!titleFont) return;
+
+  const capPx = parseFloat(document.getElementById('titleSize').value);
+  const pctFromBottom = parseFloat(document.getElementById('titleFromBottom').value);
+  const baseline = height * (1 - pctFromBottom / 100);
+  const text = getTitleText();
+
+  // Measure width to center
+  const { width: totalW } = layoutTitleStrokes(text, capPx, baseline);
+  const xShift = (width - totalW) / 2;
+
+  const { strokes } = layoutTitleStrokes(text, capPx, baseline);
+  const TITLE_COLOR = '#aaaaaa';
+
+  stroke(TITLE_COLOR);
+  strokeWeight(1);
+  noFill();
+
+  for (const s of strokes) {
+    const shifted = s.map(p => ({ x: p.x + xShift, y: p.y }));
+    beginShape();
+    for (const pt of shifted) vertex(pt.x, pt.y);
+    endShape();
+    // Add to svgContent so it appears in both SVG exports as its own layer
+    for (let i = 0; i + 1 < shifted.length; i++) {
+      svgContent.push({
+        type: 'line',
+        x1: shifted[i].x, y1: shifted[i].y,
+        x2: shifted[i+1].x, y2: shifted[i+1].y,
+        color: TITLE_COLOR, strokeWidth: 1
+      });
+    }
+  }
 }
 
 
@@ -798,6 +978,8 @@ function renderShapes() {
       }
     }
   }
+
+  drawTitle();
 }
 
 // ============== FILL STYLES ==============
@@ -1373,7 +1555,10 @@ function getSettingsObject() {
     hideOutline: document.getElementById('hideOutline').checked,
     strokeW: document.getElementById('strokeW').value,
     strokeColor: document.getElementById('strokeColor').value,
-    bgColor: document.getElementById('bgColor').value
+    bgColor: document.getElementById('bgColor').value,
+    showTitle: document.getElementById('showTitle').checked,
+    titleSize: document.getElementById('titleSize').value,
+    titleFromBottom: document.getElementById('titleFromBottom').value
   };
 }
 
@@ -1392,7 +1577,10 @@ function applySettings(settings) {
   document.getElementById('strokeW').value = settings.strokeW;
   document.getElementById('strokeColor').value = settings.strokeColor;
   document.getElementById('bgColor').value = settings.bgColor;
-  
+  if (settings.showTitle !== undefined) document.getElementById('showTitle').checked = settings.showTitle;
+  if (settings.titleSize) document.getElementById('titleSize').value = settings.titleSize;
+  if (settings.titleFromBottom) document.getElementById('titleFromBottom').value = settings.titleFromBottom;
+
   // Update range displays
   document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
 }
