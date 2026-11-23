@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redaction - Plotter Version</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+    button {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #444; }
+    button.primary { background: #A93B2A; border-color: #A93B2A; }
+    button.primary:hover { background: #8a2f22; }
+    button.secondary { background: #2A5A93; border-color: #2A5A93; }
+    button.secondary:hover { background: #224a7a; }
+    .settings-group {
+      background: #252525;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    .settings-group h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .settings-group-inner {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .setting {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .setting label {
+      font-size: 12px;
+      color: #888;
+    }
+    .setting input, .setting select {
+      background: #333;
+      border: 1px solid #555;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      width: 120px;
+    }
+    .setting input[type="range"] {
+      width: 100px;
+    }
+    .setting input[type="checkbox"] {
+      width: auto;
+    }
+    .range-value {
+      font-size: 11px;
+      color: #666;
+      text-align: right;
+    }
+    .checkbox-row {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .checkbox-row label {
+      order: 2;
+    }
+    .checkbox-row input {
+      order: 1;
+    }
+    .main-layout {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .canvas-area {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    #canvas-container {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .zoom-toggle {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .zoom-toggle button {
+      padding: 6px 10px;
+      font-size: 12px;
+      background: #333;
+      border-color: #555;
+    }
+    .zoom-toggle button.active {
+      background: #555;
+      border-color: #888;
+      color: #fff;
+    }
+    .info {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    .controls .divider {
+      width: 1px;
+      height: 24px;
+      background: #444;
+      margin: 0 10px;
+    }
+    .controls select {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    .divider {
+      width: 1px;
+      background: #444;
+      margin: 0 5px;
+    }
+    /* Sidebar column */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 200px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 20px;
+    }
+    .sidebar .settings-group {
+      width: 100%;
+    }
+    .sidebar .settings-group-inner {
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar .divider {
+      width: 100%;
+      height: 1px;
+      margin: 2px 0;
+    }
+    .sidebar .setting {
+      width: 100%;
+      overflow: hidden;
+    }
+    .sidebar .setting input,
+    .sidebar .setting select {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .sidebar .setting input[type="range"] {
+      width: 100%;
+    }
+    .sidebar .checkbox-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button class="primary" onclick="regenerate()">Regenerate</button>
+    <button onclick="exportSVG()">Export SVG</button>
+    <button onclick="exportOptimizedSVG()">Export SVG (optimized)</button>
+    <button onclick="exportPNG()">Export PNG</button>
+    <span class="divider"></span>
+    <button onclick="saveSettings()">Save Settings</button>
+    <select id="savedPresets" onchange="loadSettings()">
+      <option value="">Load Preset...</option>
+    </select>
+    <button onclick="deleteSettings()">Delete</button>
+    <span class="divider"></span>
+    <button onclick="exportPresets()">Export Presets</button>
+    <button onclick="document.getElementById('importFile').click()">Import Presets</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importPresets(event)">
+    <span class="divider"></span>
+    <div class="zoom-toggle">
+      <button id="zoom100" class="active" onclick="setZoom(1, this)">100%</button>
+      <button id="zoom90" onclick="setZoom(0.9, this)">90%</button>
+      <button id="zoom80" onclick="setZoom(0.8, this)">80%</button>
+      <button id="zoom60" onclick="setZoom(0.6, this)">60%</button>
+    </div>
+  </div>
+  
+  <div class="main-layout">
+    <div class="canvas-area">
+      <div id="canvas-container"></div>
+      <div class="info">
+        Click canvas to regenerate • Seed: <span id="seedDisplay">-</span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="settings-group">
+        <h3>Composition (regenerates)</h3>
+        <div class="settings-group-inner">
+          <div class="setting">
+            <label>Version (1-7)</label>
+            <input type="number" id="version" min="1" max="8" value="3" onchange="regenerate()">
+          </div>
+          <div class="divider"></div>
+          <div class="setting">
+            <label>Paper Format</label>
+            <select id="paperFormat" onchange="applyPaperFormat()">
+              <option value="none">None</option>
+              <option value="a3">A3 Portrait</option>
+              <option value="11x17" selected>11×17 Portrait</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Display (preserves shapes)</h3>
+        <div class="settings-group-inner">
+          <div class="setting">
+            <label>Fill Style</label>
+            <select id="fillStyle" onchange="renderOnly()">
+              <option value="hatch">Hatching</option>
+              <option value="cross">Cross-hatch</option>
+              <option value="stipple">Stippling</option>
+              <option value="contour">Contour</option>
+              <option value="scribble">Scribble</option>
+              <option value="none">Outline Only</option>
+            </select>
+          </div>
+          <div class="setting">
+            <label>Fill Density</label>
+            <input type="range" id="fillDensity" min="2" max="20" value="6" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="fillDensity-val">6</span>
+          </div>
+          <div class="setting">
+            <label>Hatch Angle</label>
+            <select id="hatchAngle" onchange="renderOnly()">
+              <option value="random">Random per shape</option>
+              <option value="uniform">Uniform (45°)</option>
+              <option value="horizontal">Horizontal</option>
+              <option value="vertical">Vertical</option>
+            </select>
+          </div>
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="hideOutline" checked onchange="renderOnly()">
+            <label>Hide Outline</label>
+          </div>
+          <div class="divider"></div>
+          <div class="setting">
+            <label>Stroke Weight</label>
+            <input type="range" id="strokeW" min="0.3" max="3" step="0.1" value="1" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="strokeW-val">1</span>
+          </div>
+          <div class="setting">
+            <label>Stroke Color</label>
+            <select id="strokeColor" onchange="renderOnly()">
+              <option value="black">Black</option>
+              <option value="greyscale">Greyscale</option>
+              <option value="colorz">Colorz Palette</option>
+              <option value="colors">Colors Palette</option>
+              <option value="colorsz">Colorsz Palette</option>
+              <option value="multi">Multi-color</option>
+              <option value="white">White</option>
+            </select>
+          </div>
+          <div class="setting">
+            <label>Background</label>
+            <select id="bgColor" onchange="renderOnly()">
+              <option value="#fff">White</option>
+              <option value="#EBE6E6">Warm Gray</option>
+              <option value="#F7E6D4">Cream</option>
+              <option value="#D4E9F9">Light Blue</option>
+              <option value="#A93B2A">Crimson</option>
+              <option value="#0a0a0a">Black</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Title (second pass)</h3>
+        <div class="settings-group-inner">
+          <div class="setting checkbox-row">
+            <input type="checkbox" id="showTitle" checked onchange="renderOnly()">
+            <label>Show title</label>
+          </div>
+          <div class="setting">
+            <label>Size</label>
+            <input type="range" id="titleSize" min="8" max="30" value="16" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="titleSize-val">16</span>
+          </div>
+          <div class="setting">
+            <label>From bottom (%)</label>
+            <input type="range" id="titleFromBottom" min="1" max="15" value="4" step="0.5" oninput="updateRangeDisplay(this); renderOnly()">
+            <span class="range-value" id="titleFromBottom-val">4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============== ZOOM ==============
+
+function setZoom(scale, btn) {
+  document.getElementById('canvas-container').style.zoom = scale;
+  document.querySelectorAll('.zoom-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// Global variables
+let svgContent = [];
+let allShapes = [];
+let shapeColors = [];
+let shapeGreys = [];
+let shapeColorz = [];
+let shapeColorsArr = [];
+let shapeColorsz = [];
+let shapeAngles = [];
+let shapeScribbleSeeds = [];
+let currentSeed;
+let shapesGenerated = false;
+
+// Settings
+let space = [3, 5, 8, 12, 15, 18, 21, 24, 28, 32, 40];
+
+// Randomization variables
+let asemic12, cnt2, cnt6, cnt7, cnt14, cnt20, cnt135, cnt150, cnt190;
+let glyphcount, size, sizea, sizeb;
+
+function setup() {
+  let canvas = createCanvas(1340, 1680);
+  canvas.parent('canvas-container');
+  currentSeed = Date.now();
+  noLoop();
+  pixelDensity(1);
+
+  document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
+  updatePresetDropdown();
+  updateSeedDisplay();
+
+  loadTitleFont();
+  applyPaperFormat();
+  generateShapes();
+  renderShapes();
+}
+
+function updateRangeDisplay(el) {
+  let display = document.getElementById(el.id + '-val');
+  if (display) display.textContent = el.value;
+}
+
+// ============== SHAPE GENERATION ==============
+
+function generateShapes() {
+  randomSeed(currentSeed);
+  
+  allShapes = [];
+  shapeColors = [];
+  shapeGreys = [];
+  shapeColorz = [];
+  shapeColorsArr = [];
+  shapeColorsz = [];
+  shapeAngles = [];
+  shapeScribbleSeeds = [];
+  
+  let version = parseInt(document.getElementById('version').value);
+
+  // Initialize random variables
+  asemic12 = random(6, 12);
+  cnt2 = random(1, 2);
+  cnt6 = random(1, 6);
+  cnt7 = random(4, 7);
+  cnt14 = random(6, 14);
+  cnt20 = random(1, 20);
+  cnt135 = random(75, 135);
+  cnt150 = random(75, 150);
+  cnt190 = random(120, 190);
+  glyphcount = random(1.8, 8.4);
+  size = random(0.2, 2.2);
+  sizea = random(0.4, 4.8);
+  sizeb = random(5.0, 8.8);
+  
+  let colors = ["#000", "#333", "#666", "#A93B2A", "#3D4460"];
+  let greys = ["#000", "#1a1a1a", "#333", "#4d4d4d", "#666", "#808080", "#999", "#b3b3b3"];
+  
+  // Color palettes from original Redaction code
+  let colors4 = ["#000", "#333", "#666", "#A93B2A", "#000", "#efefef"];
+  let colors5 = ["#000", "#000", "#000", "#fff", "#fff", "#fff", "#0a0a0a", "#A93B2A"];
+  let colors6 = ["#000", "#000", "#000", "#000", "#0a0a0a", "#A93B2A"];
+  let colors7 = ["#fff", "#fff", "#fff", "#fff", "#efefef", "#A93B2A"];
+  let colors8 = ["#000", "#000", "#000", "#000", "#0a0a0a", "#0a0a0a", "#1a1a1a"];
+  let colors9 = ["#fff", "#fff", "#fff", "#fff", "#efefef"];
+  let colors10 = ["#000", "#000", "#000", "#0a0a0a", "#fff"];
+  let colors11 = ["#fff", "#fff", "#fff", "#0a0a0a", "#0a0a0a", "#0a0a0a", "#cae5fa"];
+  let colors12 = ["#fff", "#fff", "#fff", "#0a0a0a", "#0a0a0a", "#0a0a0a", "#EDDAC6"];
+  let colors13 = ["#D4E9F9", "#000", "#000", "#000", "#000"];
+  let colors14 = ["#0a0a0a", "#0a0a0a", "#0a0a0a", "#A93B2A", "#0a0a0a", "#0a0a0a", "#D4E9F9"];
+  
+  // Palette collections
+  let colorzPalettes = [colors4, colors5, colors6, colors7, colors9, colors10, colors11, colors14];
+  let colorsPalettes = [colors4, colors5, colors6, colors7, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
+  let colorszPalettes = [colors4, colors5, colors6, colors8, colors9, colors10, colors11, colors12, colors13, colors14];
+  
+  generateOriginalLayout(version);
+  
+  // Assign colors, angles, and scribble seeds for consistency
+  for (let i = 0; i < allShapes.length; i++) {
+    shapeColors.push(random(colors));
+    shapeGreys.push(random(greys));
+    // Pick a random palette then a random color from it
+    shapeColorz.push(random(random(colorzPalettes)));
+    shapeColorsArr.push(random(random(colorsPalettes)));
+    shapeColorsz.push(random(random(colorszPalettes)));
+    shapeAngles.push(random(-60, 60));
+    shapeScribbleSeeds.push(floor(random(100000)));
+  }
+  
+  shapesGenerated = true;
+  console.log(`Generated ${allShapes.length} shapes`);
+}
+
+
+// ============== TITLE ==============
+
+let titleFont = null;
+
+function getTitleText() {
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const y = String(now.getFullYear()).slice(-2);
+  return `Redaction · @lukaszgraphz · ${m}.${d}.${y}`;
+}
+
+async function loadTitleFont() {
+  try {
+    const resp = await fetch('fonts/JetBrainsMonoThin.svg');
+    if (!resp.ok) return;
+    const text = await resp.text();
+    titleFont = parseSVGFont(text);
+    if (shapesGenerated) renderOnly();
+  } catch (e) {
+    console.warn('Title font not loaded:', e.message);
+  }
+}
+
+function parseSVGFont(svgText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const font = { glyphs: {}, defaultAdv: 378 };
+  const fontEl = doc.querySelector('font');
+  if (fontEl) font.defaultAdv = parseFloat(fontEl.getAttribute('horiz-adv-x') || 378);
+  for (const g of doc.querySelectorAll('glyph')) {
+    const u = g.getAttribute('unicode');
+    if (!u || u.length !== 1) continue;
+    const adv = parseFloat(g.getAttribute('horiz-adv-x') || font.defaultAdv);
+    font.glyphs[u] = { adv, strokes: parseGlyphStrokes(g.getAttribute('d') || '') };
+  }
+  // Measure cap height from H
+  const H = font.glyphs['H'];
+  if (H && H.strokes.length) {
+    const ys = H.strokes.flatMap(s => s.map(p => p.y));
+    font.capH = Math.max(...ys) - Math.min(...ys);
+  } else {
+    font.capH = 700;
+  }
+  return font;
+}
+
+function parseGlyphStrokes(d) {
+  const STEPS = 6;
+  const strokes = [];
+  const re = /([MLCZz])([^MLCZz]*)/g;
+  let m, cur = [0, 0];
+  while ((m = re.exec(d)) !== null) {
+    const cmd = m[1], nums = (m[2].match(/-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) || []).map(Number);
+    if (cmd === 'M') {
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        if (i === 0) strokes.push([]);
+        cur = [nums[i], nums[i+1]];
+        strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+      }
+    } else if (cmd === 'L') {
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        cur = [nums[i], nums[i+1]];
+        strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+      }
+    } else if (cmd === 'C') {
+      for (let i = 0; i + 5 < nums.length; i += 6) {
+        const p0 = cur.slice();
+        const [x1, y1, x2, y2, x3, y3] = nums.slice(i, i+6);
+        for (let k = 1; k <= STEPS; k++) {
+          const t = k / STEPS;
+          const a=(1-t)**3, b=3*t*(1-t)**2, c=3*t*t*(1-t), e=t**3;
+          cur = [a*p0[0]+b*x1+c*x2+e*x3, a*p0[1]+b*y1+c*y2+e*y3];
+          if (strokes.length) strokes[strokes.length-1].push({ x: cur[0], y: cur[1] });
+        }
+        cur = [x3, y3];
+      }
+    }
+  }
+  return strokes.filter(s => s.length > 1);
+}
+
+// Build polylines for all chars in text; y is in canvas coords (y-down).
+// Returns { strokes: [[{x,y},...]], width }
+function layoutTitleStrokes(text, capPx, baseline) {
+  if (!titleFont) return { strokes: [], width: 0 };
+  const k = capPx / titleFont.capH;
+  const rawStrokes = [];  // before x-offset; x is in font units * k, y in canvas units
+  let penX = 0;
+  for (const ch of text) {
+    if (ch === '·') {
+      // Middle dot: manual small diamond at mid-cap height
+      const mid = titleFont.capH / 2;
+      const r = titleFont.capH * 0.06;
+      rawStrokes.push([
+        { x: (penX + font_adv(ch) * 0.5 - r) * k, y: baseline - mid * k },
+        { x: (penX + font_adv(ch) * 0.5) * k,     y: baseline - (mid + r) * k },
+        { x: (penX + font_adv(ch) * 0.5 + r) * k, y: baseline - mid * k },
+        { x: (penX + font_adv(ch) * 0.5) * k,     y: baseline - (mid - r) * k },
+        { x: (penX + font_adv(ch) * 0.5 - r) * k, y: baseline - mid * k },
+      ]);
+      penX += font_adv(ch);
+      continue;
+    }
+    const g = titleFont.glyphs[ch];
+    if (g && g.strokes.length) {
+      for (const s of g.strokes) {
+        rawStrokes.push(s.map(p => ({ x: (penX + p.x) * k, y: baseline - p.y * k })));
+      }
+    }
+    penX += g ? g.adv : titleFont.defaultAdv;
+  }
+  const totalW = penX * k;
+  return { strokes: rawStrokes, width: totalW };
+}
+
+function font_adv(ch) {
+  if (!titleFont) return 378;
+  return titleFont.glyphs[ch] ? titleFont.glyphs[ch].adv : titleFont.defaultAdv * 0.6;
+}
+
+function drawTitle() {
+  if (!document.getElementById('showTitle').checked) return;
+  if (!titleFont) return;
+
+  const capPx = parseFloat(document.getElementById('titleSize').value);
+  const pctFromBottom = parseFloat(document.getElementById('titleFromBottom').value);
+  const baseline = height * (1 - pctFromBottom / 100);
+  const text = getTitleText();
+
+  // Measure width to center
+  const { width: totalW } = layoutTitleStrokes(text, capPx, baseline);
+  const xShift = (width - totalW) / 2;
+
+  const { strokes } = layoutTitleStrokes(text, capPx, baseline);
+  const TITLE_COLOR = '#aaaaaa';
+
+  stroke(TITLE_COLOR);
+  strokeWeight(1);
+  noFill();
+
+  for (const s of strokes) {
+    const shifted = s.map(p => ({ x: p.x + xShift, y: p.y }));
+    beginShape();
+    for (const pt of shifted) vertex(pt.x, pt.y);
+    endShape();
+    // Add to svgContent so it appears in both SVG exports as its own layer
+    for (let i = 0; i + 1 < shifted.length; i++) {
+      svgContent.push({
+        type: 'line',
+        x1: shifted[i].x, y1: shifted[i].y,
+        x2: shifted[i+1].x, y2: shifted[i+1].y,
+        color: TITLE_COLOR, strokeWidth: 1
+      });
+    }
+  }
+}
+
+
+function generateOriginalLayout(version) {
+  let lineHeightMult = 1.0;
+  let wordSpacingMult = 1.0;
+  let baselineJitter = 5;
+  
+  let score = version;
+  
+  if (score >= 8) {
+    generateShapes8();
+  } else if (score >= 7) {
+    for (let rowY = -40; rowY <= 1480; rowY += (cnt14) * cnt20 / size * lineHeightMult) {
+      generateShapes7(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 6) {
+    for (let rowY = 60; rowY <= 1700; rowY += cnt7 * 30 * lineHeightMult) {
+      generateShapes6(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 5) {
+    for (let rowY = 2; rowY <= 1580; rowY += cnt2 * cnt190 / sizeb * lineHeightMult) {
+      generateShapes5(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 4) {
+    for (let rowY = 2; rowY <= 1580; rowY += cnt2 * cnt190 / sizea * lineHeightMult) {
+      generateShapes4(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 3) {
+    for (let rowY = 0; rowY <= 1400; rowY += cnt2 * cnt190 / size * lineHeightMult) {
+      generateShapes3(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else if (score >= 2) {
+    for (let rowY = -40; rowY <= 1480; rowY += cnt14 * cnt20 / size * lineHeightMult) {
+      generateShapes2(rowY, wordSpacingMult, baselineJitter);
+    }
+  } else {
+    for (let rowY = 10; rowY <= 1520; rowY += cnt2 * cnt135 / size * lineHeightMult) {
+      generateShapes1(rowY, wordSpacingMult, baselineJitter);
+    }
+  }
+}
+
+// Original shape generators
+function generateShapes7(rowY, wordSpacingMult, baselineJitter) {
+  // Variable row length - each row ends at a different point
+  let rowEndX = random(600, 1340);
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 250 / size; quadX <= rowEndX; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        random(quadX - 200 / size, quadX - 100 / size), random(rowY + 90 / size, rowY + 100 / size) + jitter,
+        random(quadX - 20 / size, quadX - 120 / size), random(rowY + random(90, 120) / size, rowY + 110 / size) + jitter,
+        random(quadX - random(50, 100) / size, quadX - random(40, 210) / size), random(rowY + 200 / size, rowY + 200 / size) + jitter,
+        random(quadX - 200 / size, quadX - 120 / size), random(rowY + 200 / size, rowY + 200 / size) + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+// Version 8 — 1–5 shapes using the same size variable and exact v3 quad formula,
+// spread sparsely across the full canvas (one per evenly-distributed row, random H position)
+function generateShapes8() {
+  let lineHeightMult  = 1.0;
+  let wordSpacingMult = 1.0;
+  let baselineJitter  = 5;
+
+  let rowCount = floor(random(1, 6)); // 1–5 rows
+
+  let totalH   = 1500 * lineHeightMult;
+  let topStart = (height - totalH) / 2;
+  let rowStep  = totalH / rowCount;
+
+  for (let i = 0; i < rowCount; i++) {
+    let rowY    = topStart + i * rowStep + random(rowStep * 0.05, rowStep * 0.35);
+    let rowEndX = random(700, 1340);
+    let jitter  = random(-baselineJitter, baselineJitter);
+
+    // Per-row independent parameters — break the shared-globals sameness
+    let sz           = random(0.2, 0.45);           // height: 444–1000px
+    let localGlyph   = random(1.5, 10);             // density passes
+    let localCnt2    = random(0.5, 3);              // spacing rhythm
+    let localSpacing = random(space);               // pick one spacing value
+    let style        = floor(random(4));            // 0=v7, 1=v3, 2=v2, 3=mixed-h
+
+    let rowShapes = [];
+    let minX = Infinity, maxX = -Infinity;
+
+    for (let pass = 0; pass < localGlyph; pass++) {
+      for (let quadX = 100; quadX <= rowEndX; quadX += localCnt2 * localSpacing * wordSpacingMult) {
+        let vertices;
+        if (style === 0) {
+          // v7-style: angular lean, flat bottom
+          vertices = createQuadVertices(
+            random(quadX - 200/sz, quadX - 100/sz), random(rowY + 90/sz, rowY + 100/sz) + jitter,
+            random(quadX - 20/sz,  quadX - 120/sz), random(rowY + random(90,120)/sz, rowY + 110/sz) + jitter,
+            random(quadX - random(50,100)/sz, quadX - random(40,210)/sz), rowY + 200/sz + jitter,
+            random(quadX - 200/sz, quadX - 120/sz), rowY + 200/sz + jitter
+          );
+        } else if (style === 1) {
+          // v3-style: tall parallel slabs
+          vertices = createQuadVertices(
+            quadX - random(200,400)/sz, rowY + random(180,200)/sz + jitter,
+            quadX - random(80,240)/sz,  rowY + random(120,240)/sz + jitter,
+            quadX - random(80,420)/sz,  rowY + 400/sz + jitter,
+            quadX - random(220,400)/sz, rowY + 400/sz + jitter
+          );
+        } else if (style === 2) {
+          // v2-style: medium, rounder lean
+          vertices = createQuadVertices(
+            quadX - random(100,200)/sz, rowY + random(90,100)/sz + jitter,
+            quadX - random(20,120)/sz,  rowY + random(90,120)/sz + jitter,
+            quadX - random(40,210)/sz,  rowY + 200/sz + jitter,
+            quadX - random(120,200)/sz, rowY + 200/sz + jitter
+          );
+        } else {
+          // Mixed: each quad has its own random height — creates varied strata
+          let h = random(150, 420);
+          vertices = createQuadVertices(
+            quadX - random(150,350)/sz, rowY + random(0,60)/sz  + jitter,
+            quadX - random(10,150)/sz,  rowY + random(0,90)/sz  + jitter,
+            quadX - random(30,280)/sz,  rowY + h/sz             + jitter,
+            quadX - random(150,350)/sz, rowY + h/sz             + jitter
+          );
+        }
+        for (let v of vertices) { minX = min(minX, v.x); maxX = max(maxX, v.x); }
+        rowShapes.push({ vertices });
+      }
+    }
+
+    // Center + constrain to canvas width
+    let offsetX = (1340 / 2) - (minX + maxX) / 2;
+    let rowWidth = maxX - minX;
+    let scaleX = rowWidth > 1340 ? 1340 / rowWidth : 1.0;
+    for (let shape of rowShapes) {
+      for (let v of shape.vertices) {
+        v.x = 670 + ((v.x + offsetX) - 670) * scaleX;
+      }
+      allShapes.push(shape);
+    }
+  }
+}
+
+function generateShapes6(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  // First pass: generate shapes for this row into a temporary array
+  let rowShapes = [];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  
+  for (let quadX = 0; quadX <= 800; quadX += asemic12 * random(4, 12) * wordSpacingMult) {
+    let vertices = createQuadVertices(
+      quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+      quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+      quadX - random(25, 210) / size, rowY + 200 / size + jitter,
+      quadX - random(100, 200) / size, rowY + 200 / size + jitter
+    );
+    
+    // Track bounds
+    for (let v of vertices) {
+      if (v.x < minX) minX = v.x;
+      if (v.x > maxX) maxX = v.x;
+    }
+    
+    rowShapes.push({ vertices });
+  }
+  
+  // Calculate centering offset
+  let rowWidth = maxX - minX;
+  let canvasCenter = 1340 / 2;
+  let rowCenter = minX + rowWidth / 2;
+  let offsetX = canvasCenter - rowCenter;
+  
+  // Apply offset and add to allShapes
+  for (let shape of rowShapes) {
+    for (let v of shape.vertices) {
+      v.x += offsetX;
+    }
+    allShapes.push(shape);
+  }
+}
+
+function generateShapes5(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 620 / sizeb; quadX <= 1340; quadX += cnt2 * cnt190 / sizeb * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / sizeb, rowY + random(180, 200) / sizeb + jitter,
+        quadX - random(80, 240) / sizeb, rowY + random(120, 240) / sizeb + jitter,
+        quadX - random(80, 420) / sizeb, rowY + 400 / sizeb + jitter,
+        quadX - random(220, 400) / sizeb, rowY + 400 / sizeb + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes4(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 620 / sizea; quadX <= 1340; quadX += cnt2 * cnt190 / sizea * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / sizea, rowY + random(180, 200) / sizea + jitter,
+        quadX - random(80, 240) / sizea, rowY + random(120, 240) / sizea + jitter,
+        quadX - random(80, 420) / sizea, rowY + 400 / sizea + jitter,
+        quadX - random(220, 400) / sizea, rowY + 400 / sizea + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes3(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 420 / size; quadX <= 1410; quadX += 90 * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(200, 400) / size, rowY + random(180, 200) / size + jitter,
+        quadX - random(80, 240) / size, rowY + random(120, 240) / size + jitter,
+        quadX - random(80, 420) / size, rowY + 400 / size + jitter,
+        quadX - random(220, 400) / size, rowY + 400 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes2(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 250 / size; quadX <= 1340; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+        quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+        quadX - random(40, 210) / size, rowY + 200 / size + jitter,
+        quadX - random(120, 200) / size, rowY + 200 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function generateShapes1(rowY, wordSpacingMult, baselineJitter) {
+  let jitter = random(-baselineJitter, baselineJitter);
+  
+  for (let i = 0; i < glyphcount; i++) {
+    for (let quadX = 230 / size; quadX <= 1340; quadX += cnt2 * random(space) * wordSpacingMult) {
+      let vertices = createQuadVertices(
+        quadX - random(100, 200) / size, rowY + random(90, 100) / size + jitter,
+        quadX - random(20, 120) / size, rowY + random(90, 120) / size + jitter,
+        quadX - random(40, 210) / size, rowY + 200 / size + jitter,
+        quadX - random(120, 200) / size, rowY + 200 / size + jitter
+      );
+      allShapes.push({ vertices });
+    }
+  }
+}
+
+function createQuadVertices(x1, y1, x2, y2, x3, y3, x4, y4) {
+  return [
+    { x: x1, y: y1 },
+    { x: x2, y: y2 },
+    { x: x3, y: y3 },
+    { x: x4, y: y4 }
+  ];
+}
+
+// ============== RENDERING ==============
+
+function renderShapes() {
+  if (!shapesGenerated) return;
+  
+  let bg = document.getElementById('bgColor').value;
+  let fillStyle = document.getElementById('fillStyle').value;
+  let fillDensity = parseFloat(document.getElementById('fillDensity').value);
+  let hatchAngle = document.getElementById('hatchAngle').value;
+  let sw = parseFloat(document.getElementById('strokeW').value);
+  let strokeColorMode = document.getElementById('strokeColor').value;
+  let hideOutline = document.getElementById('hideOutline').checked;
+  
+  background(bg);
+  svgContent = [];
+  
+  strokeWeight(sw);
+  noFill();
+  
+  for (let i = 0; i < allShapes.length; i++) {
+    let shape = allShapes[i];
+    
+    let col = "#000";
+    if (strokeColorMode === "multi") {
+      col = shapeColors[i];
+    } else if (strokeColorMode === "greyscale") {
+      col = shapeGreys[i];
+    } else if (strokeColorMode === "colorz") {
+      col = shapeColorz[i];
+    } else if (strokeColorMode === "colors") {
+      col = shapeColorsArr[i];
+    } else if (strokeColorMode === "colorsz") {
+      col = shapeColorsz[i];
+    } else if (strokeColorMode === "white") {
+      col = "#fff";
+    }
+    
+    stroke(col);
+    
+    // Draw outline (unless hidden)
+    if (!hideOutline) {
+      beginShape();
+      for (let pt of shape.vertices) {
+        vertex(pt.x, pt.y);
+      }
+      endShape(CLOSE);
+      
+      svgContent.push({
+        type: 'polygon',
+        points: shape.vertices,
+        color: col,
+        strokeWidth: sw
+      });
+    }
+    
+    // Generate fill based on style
+    let fillElements = [];
+    
+    switch (fillStyle) {
+      case 'hatch':
+        fillElements = generateHatching(shape.vertices, fillDensity, hatchAngle, shapeAngles[i]);
+        break;
+      case 'cross':
+        fillElements = generateCrossHatch(shape.vertices, fillDensity, hatchAngle, shapeAngles[i]);
+        break;
+      case 'stipple':
+        fillElements = generateStippling(shape.vertices, fillDensity, shapeScribbleSeeds[i]);
+        break;
+      case 'contour':
+        fillElements = generateContourFill(shape.vertices, fillDensity);
+        break;
+      case 'scribble':
+        fillElements = generateScribbleFill(shape.vertices, fillDensity, shapeScribbleSeeds[i]);
+        break;
+      case 'none':
+      default:
+        break;
+    }
+    
+    // Draw fill elements
+    for (let elem of fillElements) {
+      if (elem.type === 'line') {
+        line(elem.x1, elem.y1, elem.x2, elem.y2);
+        svgContent.push({ ...elem, color: col, strokeWidth: sw });
+      } else if (elem.type === 'point') {
+        point(elem.x, elem.y);
+        svgContent.push({ type: 'circle', cx: elem.x, cy: elem.y, r: sw/2, color: col, strokeWidth: sw });
+      }
+    }
+  }
+
+  drawTitle();
+}
+
+// ============== FILL STYLES ==============
+
+// Standard parallel hatching
+function generateHatching(vertices, density, angleMode, storedAngle) {
+  let lines = [];
+  let angle = getAngle(angleMode, storedAngle);
+  
+  let { minX, maxX, minY, maxY, diagonal, centerX, centerY } = getBounds(vertices);
+  let rad = radians(angle);
+  
+  for (let offset = -diagonal; offset <= diagonal; offset += density) {
+    let x1 = centerX + offset * cos(rad + HALF_PI) - diagonal * cos(rad);
+    let y1 = centerY + offset * sin(rad + HALF_PI) - diagonal * sin(rad);
+    let x2 = centerX + offset * cos(rad + HALF_PI) + diagonal * cos(rad);
+    let y2 = centerY + offset * sin(rad + HALF_PI) + diagonal * sin(rad);
+    
+    let clipped = clipLineToPolygon(x1, y1, x2, y2, vertices);
+    if (clipped) {
+      lines.push({ type: 'line', ...clipped });
+    }
+  }
+  
+  return lines;
+}
+
+// Cross-hatching (two directions)
+function generateCrossHatch(vertices, density, angleMode, storedAngle) {
+  let lines = [];
+  let angle1 = getAngle(angleMode, storedAngle);
+  let angle2 = angle1 + 90;
+  
+  let { diagonal, centerX, centerY } = getBounds(vertices);
+  
+  for (let angle of [angle1, angle2]) {
+    let rad = radians(angle);
+    
+    for (let offset = -diagonal; offset <= diagonal; offset += density) {
+      let x1 = centerX + offset * cos(rad + HALF_PI) - diagonal * cos(rad);
+      let y1 = centerY + offset * sin(rad + HALF_PI) - diagonal * sin(rad);
+      let x2 = centerX + offset * cos(rad + HALF_PI) + diagonal * cos(rad);
+      let y2 = centerY + offset * sin(rad + HALF_PI) + diagonal * sin(rad);
+      
+      let clipped = clipLineToPolygon(x1, y1, x2, y2, vertices);
+      if (clipped) {
+        lines.push({ type: 'line', ...clipped });
+      }
+    }
+  }
+  
+  return lines;
+}
+
+// Stippling (dots)
+function generateStippling(vertices, density, seed) {
+  let points = [];
+  let { minX, maxX, minY, maxY } = getBounds(vertices);
+  
+  // Density controls dot spacing
+  let spacing = density * 1.5;
+  let dotCount = ((maxX - minX) * (maxY - minY)) / (spacing * spacing);
+  
+  randomSeed(seed);
+  
+  for (let i = 0; i < dotCount; i++) {
+    let x = random(minX, maxX);
+    let y = random(minY, maxY);
+    
+    if (pointInPolygon(x, y, vertices)) {
+      points.push({ type: 'point', x, y });
+    }
+  }
+  
+  return points;
+}
+
+// Contour fill (lines following shape edges)
+function generateContourFill(vertices, density) {
+  let lines = [];
+  let levels = floor(20 / density); // More density = more contour levels
+  
+  for (let level = 1; level <= levels; level++) {
+    let t = level / (levels + 1);
+    let shrunkVertices = shrinkPolygon(vertices, t);
+    
+    if (shrunkVertices && shrunkVertices.length >= 3) {
+      // Add lines connecting consecutive vertices of shrunk polygon
+      for (let i = 0; i < shrunkVertices.length; i++) {
+        let v1 = shrunkVertices[i];
+        let v2 = shrunkVertices[(i + 1) % shrunkVertices.length];
+        lines.push({ type: 'line', x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y });
+      }
+    }
+  }
+  
+  return lines;
+}
+
+// Scribble fill (gestural marks)
+function generateScribbleFill(vertices, density, seed) {
+  let lines = [];
+  let { minX, maxX, minY, maxY, centerX, centerY } = getBounds(vertices);
+  
+  randomSeed(seed);
+  
+  let scribbleCount = floor(30 / density);
+  
+  for (let s = 0; s < scribbleCount; s++) {
+    // Start point inside polygon
+    let startX, startY;
+    let attempts = 0;
+    do {
+      startX = random(minX, maxX);
+      startY = random(minY, maxY);
+      attempts++;
+    } while (!pointInPolygon(startX, startY, vertices) && attempts < 50);
+    
+    if (attempts >= 50) continue;
+    
+    // Create a scribble path
+    let x = startX;
+    let y = startY;
+    let angle = random(TWO_PI);
+    let segmentLength = random(5, 15);
+    
+    for (let i = 0; i < random(3, 8); i++) {
+      let newX = x + cos(angle) * segmentLength;
+      let newY = y + sin(angle) * segmentLength;
+      
+      // Clip to polygon
+      if (pointInPolygon(newX, newY, vertices)) {
+        lines.push({ type: 'line', x1: x, y1: y, x2: newX, y2: newY });
+        x = newX;
+        y = newY;
+      }
+      
+      // Change direction
+      angle += random(-PI/2, PI/2);
+      segmentLength = random(5, 15);
+    }
+  }
+  
+  return lines;
+}
+
+// ============== HELPER FUNCTIONS ==============
+
+function getAngle(angleMode, storedAngle) {
+  switch (angleMode) {
+    case 'uniform': return 45;
+    case 'horizontal': return 0;
+    case 'vertical': return 90;
+    case 'random':
+    default: return storedAngle;
+  }
+}
+
+function getBounds(vertices) {
+  let minX = Math.min(...vertices.map(v => v.x));
+  let maxX = Math.max(...vertices.map(v => v.x));
+  let minY = Math.min(...vertices.map(v => v.y));
+  let maxY = Math.max(...vertices.map(v => v.y));
+  let diagonal = dist(minX, minY, maxX, maxY);
+  let centerX = (minX + maxX) / 2;
+  let centerY = (minY + maxY) / 2;
+  
+  return { minX, maxX, minY, maxY, diagonal, centerX, centerY };
+}
+
+function shrinkPolygon(vertices, t) {
+  // Simple polygon shrinking toward centroid
+  let cx = vertices.reduce((sum, v) => sum + v.x, 0) / vertices.length;
+  let cy = vertices.reduce((sum, v) => sum + v.y, 0) / vertices.length;
+  
+  let shrunk = vertices.map(v => ({
+    x: v.x + (cx - v.x) * t,
+    y: v.y + (cy - v.y) * t
+  }));
+  
+  // Check if still valid (not collapsed)
+  let area = 0;
+  for (let i = 0; i < shrunk.length; i++) {
+    let j = (i + 1) % shrunk.length;
+    area += shrunk[i].x * shrunk[j].y;
+    area -= shrunk[j].x * shrunk[i].y;
+  }
+  
+  if (Math.abs(area) < 10) return null;
+  
+  return shrunk;
+}
+
+function clipLineToPolygon(x1, y1, x2, y2, vertices) {
+  let intersections = [];
+  
+  for (let i = 0; i < vertices.length; i++) {
+    let v1 = vertices[i];
+    let v2 = vertices[(i + 1) % vertices.length];
+    
+    let intersection = lineIntersection(x1, y1, x2, y2, v1.x, v1.y, v2.x, v2.y);
+    if (intersection) {
+      intersections.push(intersection);
+    }
+  }
+  
+  if (pointInPolygon(x1, y1, vertices)) {
+    intersections.push({ x: x1, y: y1 });
+  }
+  if (pointInPolygon(x2, y2, vertices)) {
+    intersections.push({ x: x2, y: y2 });
+  }
+  
+  if (intersections.length < 2) return null;
+  
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  intersections.sort((a, b) => {
+    let ta = dx !== 0 ? (a.x - x1) / dx : (a.y - y1) / dy;
+    let tb = dx !== 0 ? (b.x - x1) / dx : (b.y - y1) / dy;
+    return ta - tb;
+  });
+  
+  let first = intersections[0];
+  let last = intersections[intersections.length - 1];
+  
+  let midX = (first.x + last.x) / 2;
+  let midY = (first.y + last.y) / 2;
+  if (!pointInPolygon(midX, midY, vertices)) return null;
+  
+  return { x1: first.x, y1: first.y, x2: last.x, y2: last.y };
+}
+
+function lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+  let denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(denom) < 0.0001) return null;
+  
+  let t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+  let u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+  
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    return {
+      x: x1 + t * (x2 - x1),
+      y: y1 + t * (y2 - y1)
+    };
+  }
+  return null;
+}
+
+function pointInPolygon(x, y, vertices) {
+  let inside = false;
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    let xi = vertices[i].x, yi = vertices[i].y;
+    let xj = vertices[j].x, yj = vertices[j].y;
+    
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// ============== SVG EXPORT ==============
+
+// --- Plotter optimization (lossless: only path structure + order change) ---
+const OPT_EPS = 0.1;
+const OPT_MAX_SORT = 20000;   // per-layer item cap above which travel-sort is skipped
+function optKey(x, y) { return Math.round(x / OPT_EPS) + ',' + Math.round(y / OPT_EPS); }
+
+// Merge line segments that share endpoints into polylines; drop degenerate + exact-duplicate segments.
+// segs: [{x1,y1,x2,y2}] -> [[{x,y},...], ...]. A polyline with coincident ends is a closed ring.
+function mergeSegments(segs) {
+  const seen = new Set();            // dedupe by unordered endpoint-key pair
+  const nodes = new Map();           // key -> {x,y, edges:[edgeIndex]}
+  const edges = [];                  // {a:key, b:key, used:false}
+  function node(x, y) {
+    const k = optKey(x, y);
+    if (!nodes.has(k)) nodes.set(k, { x, y, edges: [] });
+    return k;
+  }
+  for (const s of segs) {
+    const ka = optKey(s.x1, s.y1), kb = optKey(s.x2, s.y2);
+    if (ka === kb) continue;                                   // degenerate
+    const pair = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+    if (seen.has(pair)) continue;                              // exact duplicate
+    seen.add(pair);
+    const a = node(s.x1, s.y1), b = node(s.x2, s.y2);
+    const ei = edges.length;
+    edges.push({ a, b, used: false });
+    nodes.get(a).edges.push(ei);
+    nodes.get(b).edges.push(ei);
+  }
+  function extend(chain, endKey, forward) {
+    while (true) {
+      const nd = nodes.get(endKey);
+      const next = nd.edges.find(ei => !edges[ei].used);
+      if (next === undefined) break;
+      edges[next].used = true;
+      const e = edges[next];
+      const otherKey = e.a === endKey ? e.b : e.a;
+      const otherNode = nodes.get(otherKey);
+      if (forward) chain.push(otherNode); else chain.unshift(otherNode);
+      endKey = otherKey;
+    }
+  }
+  const polylines = [];
+  for (let i = 0; i < edges.length; i++) {
+    if (edges[i].used) continue;
+    edges[i].used = true;
+    const e = edges[i];
+    const chain = [nodes.get(e.a), nodes.get(e.b)];
+    extend(chain, e.b, true);        // walk forward
+    extend(chain, e.a, false);       // walk backward
+    polylines.push(chain.map(n => ({ x: n.x, y: n.y })));
+  }
+  return polylines;
+}
+
+function dist2(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
+
+// Greedy nearest-neighbor ordering from (0,0). Flips open polylines to start at the nearer end;
+// rotates closed polylines to start at the vertex nearest the pen. Reorders in place-ish, returns array.
+function travelSort(items) {
+  const remaining = items.slice();
+  const out = [];
+  let px = 0, py = 0;
+  while (remaining.length) {
+    let best = -1, bestD = Infinity, bestFlip = false;
+    for (let i = 0; i < remaining.length; i++) {
+      const it = remaining[i];
+      if (it.dot) {
+        const d = dist2(px, py, it.dot.x, it.dot.y);
+        if (d < bestD) { bestD = d; best = i; bestFlip = false; }
+      } else if (it.closed) {
+        for (const p of it.pts) { const d = dist2(px, py, p.x, p.y); if (d < bestD) { bestD = d; best = i; bestFlip = false; } }
+      } else {
+        const a = it.pts[0], b = it.pts[it.pts.length - 1];
+        const da = dist2(px, py, a.x, a.y), db = dist2(px, py, b.x, b.y);
+        const d = Math.min(da, db);
+        if (d < bestD) { bestD = d; best = i; bestFlip = db < da; }
+      }
+    }
+    const it = remaining.splice(best, 1)[0];
+    if (it.dot) {
+      out.push(it); px = it.dot.x; py = it.dot.y;
+    } else if (it.closed) {
+      // rotate loop to start at the vertex nearest the pen
+      let bi = 0, bd = Infinity;
+      for (let j = 0; j < it.pts.length; j++) { const d = dist2(px, py, it.pts[j].x, it.pts[j].y); if (d < bd) { bd = d; bi = j; } }
+      // pts is a closed ring stored WITHOUT a duplicate trailing point here
+      it.pts = it.pts.slice(bi).concat(it.pts.slice(0, bi));
+      out.push(it);
+      px = it.pts[0].x; py = it.pts[0].y;   // pen returns to loop start
+    } else {
+      if (bestFlip) it.pts.reverse();
+      out.push(it);
+      const last = it.pts[it.pts.length - 1]; px = last.x; py = last.y;
+    }
+  }
+  return out;
+}
+
+function estimateTravel(items) {
+  let px = 0, py = 0, total = 0;
+  for (const it of items) {
+    if (it.dot) { total += Math.hypot(px - it.dot.x, py - it.dot.y); px = it.dot.x; py = it.dot.y; }
+    else {
+      const a = it.pts[0], b = it.pts[it.pts.length - 1];
+      total += Math.hypot(px - a.x, py - a.y);
+      if (it.closed) { px = a.x; py = a.y; } else { px = b.x; py = b.y; }
+    }
+  }
+  return total;
+}
+
+// Build the optimized SVG string (merge + dedupe + travel-sort, per color layer). Returns null if nothing to export.
+function buildOptimizedSVG() {
+  if (!svgContent.length) { console.warn('Optimized SVG: nothing rendered yet'); return null; }
+  const sw = parseFloat(document.getElementById('strokeW').value);
+  const bg = document.getElementById('bgColor').value;
+
+  // group by pen color
+  const byColor = {};
+  for (const item of svgContent) { (byColor[item.color] || (byColor[item.color] = [])).push(item); }
+
+  let body = '';
+  let rawCount = 0, pathCount = 0, travBefore = 0, travAfter = 0;
+
+  for (const color in byColor) {
+    const group = byColor[color];
+    rawCount += group.length;
+
+    // 1) merge line segments into polylines
+    const segs = group.filter(g => g.type === 'line').map(g => ({ x1:g.x1, y1:g.y1, x2:g.x2, y2:g.y2 }));
+    const merged = mergeSegments(segs);
+
+    // build the item list: merged polylines (+ closed rings), passthrough polygons, dots
+    const items = [];
+    for (const pl of merged) {
+      const closed = pl.length > 2 && Math.abs(pl[0].x - pl[pl.length-1].x) < OPT_EPS && Math.abs(pl[0].y - pl[pl.length-1].y) < OPT_EPS;
+      items.push({ pts: closed ? pl.slice(0, -1) : pl, closed });   // strip duplicate trailing point on closed rings
+    }
+    for (const g of group) {
+      if (g.type === 'polygon') items.push({ pts: g.points.map(p => ({ x:p.x, y:p.y })), closed: true });
+      else if (g.type === 'circle') items.push({ dot: { x:g.cx, y:g.cy }, r:g.r });
+    }
+
+    // 2) travel-sort (skip for oversized layers)
+    travBefore += estimateTravel(items);
+    const ordered = items.length <= OPT_MAX_SORT ? travelSort(items) : (console.warn('Optimized SVG: layer '+color+' has '+items.length+' items > cap; skipping sort'), items);
+    travAfter += estimateTravel(ordered);
+
+    // 3) emit
+    body += `    <g stroke="${color}" stroke-width="${sw}">\n`;
+    for (const it of ordered) {
+      if (it.dot) { body += `      <circle cx="${it.dot.x.toFixed(2)}" cy="${it.dot.y.toFixed(2)}" r="${it.r.toFixed(2)}" fill="${color}"/>\n`; pathCount++; }
+      else {
+        const pts = it.pts.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        body += it.closed ? `      <polygon points="${pts}"/>\n` : `      <polyline points="${pts}"/>\n`;
+        pathCount++;
+      }
+    }
+    body += `    </g>\n`;
+  }
+
+  console.log('Optimized SVG: ' + rawCount + ' raw elements -> ' + pathCount + ' paths; pen-up travel ' +
+              Math.round(travBefore) + ' -> ' + Math.round(travAfter) + ' (' +
+              (travBefore > 0 ? Math.round(100 * (1 - travAfter / travBefore)) : 0) + '% less)');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <title>Redaction - Plotter Export (optimized)</title>
+  <desc>Generated with p5.js for pen plotter; merged + travel-sorted</desc>
+  <rect width="100%" height="100%" fill="${bg}"/>
+  <g id="artwork" fill="none" stroke-linecap="round" stroke-linejoin="round">
+${body}  </g>
+</svg>`;
+}
+
+function exportOptimizedSVG() {
+  const svg = buildOptimizedSVG();
+  if (!svg) return;
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_plotter_optimized_${Date.now()}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportSVG() {
+  let sw = parseFloat(document.getElementById('strokeW').value);
+  
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <title>Redaction - Plotter Export</title>
+  <desc>Generated with p5.js for pen plotter</desc>
+  
+  <!-- Background - remove for colored paper -->
+  <rect width="100%" height="100%" fill="${document.getElementById('bgColor').value}"/>
+  
+  <g id="artwork" fill="none" stroke-linecap="round" stroke-linejoin="round">
+`;
+  
+  // Group by color
+  let byColor = {};
+  for (let item of svgContent) {
+    if (!byColor[item.color]) byColor[item.color] = [];
+    byColor[item.color].push(item);
+  }
+  
+  for (let color in byColor) {
+    svg += `    <g stroke="${color}" stroke-width="${sw}">\n`;
+    
+    for (let item of byColor[color]) {
+      if (item.type === 'polygon') {
+        let points = item.points.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        svg += `      <polygon points="${points}"/>\n`;
+      } else if (item.type === 'line') {
+        svg += `      <line x1="${item.x1.toFixed(2)}" y1="${item.y1.toFixed(2)}" x2="${item.x2.toFixed(2)}" y2="${item.y2.toFixed(2)}"/>\n`;
+      } else if (item.type === 'circle') {
+        svg += `      <circle cx="${item.cx.toFixed(2)}" cy="${item.cy.toFixed(2)}" r="${item.r.toFixed(2)}" fill="${color}"/>\n`;
+      }
+    }
+    
+    svg += `    </g>\n`;
+  }
+  
+  svg += `  </g>
+</svg>`;
+  
+  let blob = new Blob([svg], { type: 'image/svg+xml' });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_plotter_${Date.now()}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  console.log('SVG exported with', svgContent.length, 'elements');
+}
+
+function exportPNG() {
+  saveCanvas('Redaction_plotter', 'png');
+}
+
+function regenerate() {
+  currentSeed = Date.now();
+  updateSeedDisplay();
+  
+  // Set canvas height: paper format takes priority, then auto-fit, then default
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297); // ~1895px
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11); // ~2069px
+  } else {
+    targetHeight = 1680;
+  }
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
+
+  generateShapes();
+
+  renderShapes();
+}
+
+function updateSeedDisplay() {
+  let display = document.getElementById('seedDisplay');
+  if (display) display.textContent = currentSeed;
+}
+
+function renderOnly() {
+  renderShapes();
+}
+
+function applyPaperFormat() {
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297);
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11);
+  } else {
+    targetHeight = 1680;
+  }
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
+  renderShapes();
+}
+
+function mousePressed() {
+  let zoom = parseFloat(document.getElementById('canvas-container').style.zoom) || 1;
+  if (mouseX >= 0 && mouseX <= width * zoom && mouseY >= 0 && mouseY <= height * zoom) {
+    regenerate();
+  }
+}
+
+// ============== SETTINGS SAVE/LOAD ==============
+
+function getSettingsObject() {
+  return {
+    seed: currentSeed,
+    version: document.getElementById('version').value,
+    paperFormat: document.getElementById('paperFormat').value,
+    fillStyle: document.getElementById('fillStyle').value,
+    fillDensity: document.getElementById('fillDensity').value,
+    hatchAngle: document.getElementById('hatchAngle').value,
+    hideOutline: document.getElementById('hideOutline').checked,
+    strokeW: document.getElementById('strokeW').value,
+    strokeColor: document.getElementById('strokeColor').value,
+    bgColor: document.getElementById('bgColor').value,
+    showTitle: document.getElementById('showTitle').checked,
+    titleSize: document.getElementById('titleSize').value,
+    titleFromBottom: document.getElementById('titleFromBottom').value
+  };
+}
+
+function applySettings(settings) {
+  // Apply seed if present
+  if (settings.seed) {
+    currentSeed = settings.seed;
+  }
+  
+  document.getElementById('version').value = settings.version;
+  document.getElementById('paperFormat').value = settings.paperFormat || 'none';
+  document.getElementById('fillStyle').value = settings.fillStyle;
+  document.getElementById('fillDensity').value = settings.fillDensity;
+  document.getElementById('hatchAngle').value = settings.hatchAngle;
+  document.getElementById('hideOutline').checked = settings.hideOutline || false;
+  document.getElementById('strokeW').value = settings.strokeW;
+  document.getElementById('strokeColor').value = settings.strokeColor;
+  document.getElementById('bgColor').value = settings.bgColor;
+  if (settings.showTitle !== undefined) document.getElementById('showTitle').checked = settings.showTitle;
+  if (settings.titleSize) document.getElementById('titleSize').value = settings.titleSize;
+  if (settings.titleFromBottom) document.getElementById('titleFromBottom').value = settings.titleFromBottom;
+
+  // Update range displays
+  document.querySelectorAll('input[type="range"]').forEach(updateRangeDisplay);
+}
+
+function saveSettings() {
+  let name = prompt('Enter a name for this preset:', 'Preset ' + new Date().toLocaleDateString());
+  if (!name) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  presets[name] = getSettingsObject();
+  localStorage.setItem('redactionPresets', JSON.stringify(presets));
+  
+  updatePresetDropdown();
+  document.getElementById('savedPresets').value = name;
+  console.log('Saved preset:', name);
+}
+
+function loadSettings() {
+  let select = document.getElementById('savedPresets');
+  let name = select.value;
+  if (!name) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  if (presets[name]) {
+    applySettings(presets[name]);
+    // Use regenerateFromPreset to keep the loaded seed
+    regenerateFromPreset();
+    console.log('Loaded preset:', name, 'with seed:', currentSeed);
+  }
+}
+
+function regenerateFromPreset() {
+  // Same as regenerate but doesn't create a new seed
+  updateSeedDisplay();
+  
+  let paperFormat = document.getElementById('paperFormat').value;
+  let targetHeight;
+  if (paperFormat === 'a3') {
+    targetHeight = Math.round(1340 * 420 / 297);
+  } else if (paperFormat === '11x17') {
+    targetHeight = Math.round(1340 * 17 / 11);
+  } else {
+    targetHeight = 1680;
+  }
+  if (height !== targetHeight) {
+    resizeCanvas(1340, targetHeight);
+  }
+
+  generateShapes();
+  renderShapes();
+}
+
+function deleteSettings() {
+  let select = document.getElementById('savedPresets');
+  let name = select.value;
+  if (!name) {
+    alert('Select a preset to delete first.');
+    return;
+  }
+  
+  if (!confirm('Delete preset "' + name + '"?')) return;
+  
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  delete presets[name];
+  localStorage.setItem('redactionPresets', JSON.stringify(presets));
+  
+  updatePresetDropdown();
+  console.log('Deleted preset:', name);
+}
+
+function updatePresetDropdown() {
+  let select = document.getElementById('savedPresets');
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  
+  // Clear existing options except the first
+  select.innerHTML = '<option value="">Load Preset...</option>';
+  
+  // Add saved presets
+  for (let name in presets) {
+    let option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  }
+}
+
+// Initialize preset dropdown on load (also called in setup for p5.js timing)
+
+function exportPresets() {
+  let presets = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+  
+  if (Object.keys(presets).length === 0) {
+    alert('No presets to export. Save some settings first.');
+    return;
+  }
+  
+  let data = JSON.stringify(presets, null, 2);
+  let blob = new Blob([data], { type: 'application/json' });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `Redaction_presets_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  console.log('Exported', Object.keys(presets).length, 'presets');
+}
+
+function importPresets(event) {
+  let file = event.target.files[0];
+  if (!file) return;
+  
+  let reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let imported = JSON.parse(e.target.result);
+      let existing = JSON.parse(localStorage.getItem('redactionPresets') || '{}');
+      
+      let count = 0;
+      for (let name in imported) {
+        // Check if preset with same name exists
+        let finalName = name;
+        if (existing[name]) {
+          finalName = name + ' (imported)';
+        }
+        existing[finalName] = imported[name];
+        count++;
+      }
+      
+      localStorage.setItem('redactionPresets', JSON.stringify(existing));
+      updatePresetDropdown();
+      
+      alert('Imported ' + count + ' preset(s).');
+      console.log('Imported', count, 'presets');
+    } catch (err) {
+      alert('Error importing presets: Invalid JSON file.');
+      console.error('Import error:', err);
+    }
+  };
+  reader.readAsText(file);
+  
+  // Reset file input so same file can be imported again
+  event.target.value = '';
+}
+</script>
+<script>
+// Plot button: connects to the local AxiDraw plot service when available.
+// Always visible — greyed out until localhost:8765 responds, then activates.
+(function () {
+  const btn = document.createElement('button');
+  btn.id = 'btn-plot'; btn.textContent = 'Plot';
+  btn.disabled = true;
+  btn.title = 'Connect a plotter: run plot_server.py to activate';
+  document.querySelector('.controls button[onclick="exportPNG()"]').after(btn);
+
+  const open = () => { const svg = buildOptimizedSVG(); if (svg) AxiPlot.open(svg); };
+  btn.onclick = () => {
+    if (window.AxiPlot) return open();
+    const s = document.createElement('script');
+    s.src = 'http://localhost:8765/plot-button.js';
+    s.onload = open;
+    s.onerror = () => { s.remove(); btn.disabled = true; btn.title = 'Plot server not running'; };
+    document.head.append(s);
+  };
+
+  function probe() {
+    fetch('http://localhost:8765/', { mode: 'cors', cache: 'no-store' })
+      .then(r => { if (r.ok) { btn.disabled = false; btn.title = 'Send to plotter'; } })
+      .catch(() => { if (!window.AxiPlot) { btn.disabled = true; btn.title = 'Connect a plotter: run plot_server.py to activate'; } });
+  }
+  probe();
+  setInterval(probe, 5000);
+})();
+</script>
+<script>
+// Serial Plot button: drives the plotter directly over USB via Web Serial API.
+// Works in Chrome/Edge without any local server. Loads plotter-serial.js on first click.
+(function () {
+  if (!('serial' in navigator)) return; // not supported — hide silently
+  const btn = document.createElement('button');
+  btn.id = 'btn-serial-plot'; btn.textContent = 'Serial Plot';
+  btn.title = 'Plot directly over USB — no server needed (Chrome/Edge only)';
+  document.getElementById('btn-plot').after(btn);
+
+  btn.onclick = () => {
+    if (window.SerialPlot) {
+      const svg = buildOptimizedSVG();
+      if (svg) SerialPlot.open(svg);
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = 'plotter-serial.js';
+    s.onload = () => {
+      const svg = buildOptimizedSVG();
+      if (svg) SerialPlot.open(svg);
+    };
+    s.onerror = () => { s.remove(); btn.title = 'Failed to load plotter-serial.js'; };
+    document.head.append(s);
+  };
+})();
+</script>
+</body>
+</html>
