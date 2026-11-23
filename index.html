@@ -245,7 +245,7 @@
             <select id="paperFormat" onchange="applyPaperFormat()">
               <option value="none">None</option>
               <option value="a3">A3 Portrait</option>
-              <option value="11x17">11×17 Portrait</option>
+              <option value="11x17" selected>11×17 Portrait</option>
             </select>
           </div>
         </div>
@@ -378,6 +378,7 @@ function setup() {
   updateSeedDisplay();
 
   loadTitleFont();
+  applyPaperFormat();
   generateShapes();
   renderShapes();
 }
