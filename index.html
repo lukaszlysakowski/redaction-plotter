@@ -1756,32 +1756,5 @@ function importPresets(event) {
   setInterval(probe, 5000);
 })();
 </script>
-<script>
-// Serial Plot button: drives the plotter directly over USB via Web Serial API.
-// Works in Chrome/Edge without any local server. Loads plotter-serial.js on first click.
-(function () {
-  if (!('serial' in navigator)) return; // not supported — hide silently
-  const btn = document.createElement('button');
-  btn.id = 'btn-serial-plot'; btn.textContent = 'Serial Plot';
-  btn.title = 'Plot directly over USB — no server needed (Chrome/Edge only)';
-  document.getElementById('btn-plot').after(btn);
-
-  btn.onclick = () => {
-    if (window.SerialPlot) {
-      const svg = buildOptimizedSVG();
-      if (svg) SerialPlot.open(svg);
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = 'plotter-serial.js';
-    s.onload = () => {
-      const svg = buildOptimizedSVG();
-      if (svg) SerialPlot.open(svg);
-    };
-    s.onerror = () => { s.remove(); btn.title = 'Failed to load plotter-serial.js'; };
-    document.head.append(s);
-  };
-})();
-</script>
 </body>
 </html>
