@@ -245,7 +245,7 @@
       } else {
         await send('v\r');           // EBB version query
       }
-      setState('idle', 'Move carriage to home corner, then click Set home.');
+      setState('idle', 'Move carriage to home corner (top-left), then click Start plot.');
     } catch (e) {
       setState('error', e.message === 'No port selected.' ? 'No port selected.' : `Connect failed: ${e.message}`);
     }
@@ -320,12 +320,12 @@
     stopRequested = false;
     pauseRequested = false;
 
-    // Absolute mode + mm units ($SLP already sent by setHome)
-    await sendGRBL('G90\nG21\n');
+    // Wake motors and zero position to wherever carriage is now (home corner).
+    await sendGRBL('$SLP\n');
 
-    // Pen up, go home
+    // Absolute mode + mm units; pen up. Carriage is already at home — no move to 0,0.
+    await sendGRBL('G90\nG21\n');
     await sendGRBL(gPenUp());
-    await sendGRBL(gRapid(0, 0));
 
     let total = paths.length, done = 0;
 
@@ -521,17 +521,10 @@
     if (connected && !active) {
       body.append(el('div', { className: 'row sep' }, [el('label', { textContent: 'Setup' })]));
       body.append(el('div', { className: 'row', style: 'margin-top:4px' }, [
-        button('Pen up',    '', penUp),
-        button('Pen down',  '', penDown),
+        button('Pen up',      '', penUp),
+        button('Pen down',    '', penDown),
         button('Return home', '', goHome),
       ]));
-      // Set home — only relevant for GRBL machines (iDraw has no limit switches)
-      if (MACHINES[machine].protocol === 'grbl') {
-        body.append(el('div', { className: 'row', style: 'margin-top:4px' }, [
-          button('Set home here', 'go', setHome),
-        ]));
-        body.append(el('div', { className: 'msg', style: 'font-size:11px; color:#888', textContent: 'Move carriage to home corner first, then Set home.' }));
-      }
     }
   }
 
