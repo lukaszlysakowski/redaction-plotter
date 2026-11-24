@@ -320,10 +320,12 @@
     stopRequested = false;
     pauseRequested = false;
 
-    // Wake motors and zero position to wherever carriage is now (home corner).
+    // Wake motors ($SLP), then explicitly set current position as 0,0,0 (G92).
+    // Carriage must be at home corner before clicking Start plot.
     await sendGRBL('$SLP\n');
+    await sendGRBL('G92 X0 Y0 Z0\n');
 
-    // Absolute mode + mm units; pen up. Carriage is already at home — no move to 0,0.
+    // Absolute mode + mm units; pen up.
     await sendGRBL('G90\nG21\n');
     await sendGRBL(gPenUp());
 
