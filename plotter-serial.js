@@ -24,8 +24,10 @@
   };
 
   const MACHINES = {
-    idraw:   { label: 'iDraw A3',  baud: 115200, protocol: 'grbl'  },
-    axidraw: { label: 'AxiDraw',   baud: 115200, protocol: 'ebb'   },
+    // iDraw axis mapping: page_x = machine −Y (420 mm), page_y = machine −X (297 mm)
+    // So G-code X = −page_y, G-code Y = −page_x (swapped + negated)
+    idraw:   { label: 'iDraw A3',  baud: 115200, protocol: 'grbl', axisSwap: true  },
+    axidraw: { label: 'AxiDraw',   baud: 115200, protocol: 'ebb',  axisSwap: false },
   };
 
   // iDraw geometry (from drawcore.py + driver):
@@ -370,10 +372,18 @@
     }
   }
 
-  function gPenUp()       { return `G0 Z${IDRAW.penUp} F${IDRAW.feedRapid}\n`; }
-  function gPenDown()     { return `G0 Z${IDRAW.penDown} F${IDRAW.feedRapid}\n`; }
-  function gRapid(x, y)  { return `G0 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedRapid}\n`; }
-  function gFeed(x, y)   { return `G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedDraw}\n`; }
+  function gPenUp()      { return `G0 Z${IDRAW.penUp} F${IDRAW.feedRapid}\n`; }
+  function gPenDown()    { return `G0 Z${IDRAW.penDown} F${IDRAW.feedRapid}\n`; }
+  function gRapid(x, y) {
+    if (MACHINES[machine].axisSwap)
+      return `G0 X${(-y).toFixed(3)} Y${(-x).toFixed(3)} F${IDRAW.feedRapid}\n`;
+    return `G0 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedRapid}\n`;
+  }
+  function gFeed(x, y) {
+    if (MACHINES[machine].axisSwap)
+      return `G1 X${(-y).toFixed(3)} Y${(-x).toFixed(3)} F${IDRAW.feedDraw}\n`;
+    return `G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedDraw}\n`;
+  }
 
   // ── EBB plotting (AxiDraw) ───────────────────────────────────────────────────
 
