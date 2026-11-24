@@ -237,17 +237,15 @@
       writer = port.writable.getWriter();
       reader = port.readable.getReader();
       startReading();
-      setState('idle', `${cfg.label} connected.`);
-      render();
-      // Wake GRBL / check EBB
+      // Wake GRBL / check EBB — do NOT send $SLP here; it zeros position,
+      // so it must only be sent once the carriage is physically at home.
       if (cfg.protocol === 'grbl') {
-        await send('\r\n\r\n');      // soft-reset
+        await send('\r\n\r\n');      // soft-reset (clears alarm, no motion)
         await sleep(500);
-        await send('$SLP\n');        // wake DrawCore motors
-        await sleep(200);
       } else {
         await send('v\r');           // EBB version query
       }
+      setState('idle', 'Move carriage to home corner, then click Set home.');
     } catch (e) {
       setState('error', e.message === 'No port selected.' ? 'No port selected.' : `Connect failed: ${e.message}`);
     }
@@ -523,10 +521,17 @@
     if (connected && !active) {
       body.append(el('div', { className: 'row sep' }, [el('label', { textContent: 'Setup' })]));
       body.append(el('div', { className: 'row', style: 'margin-top:4px' }, [
-        button('Pen up',   '', penUp),
-        button('Pen down', '', penDown),
-        button('Go home',  '', goHome),
+        button('Pen up',    '', penUp),
+        button('Pen down',  '', penDown),
+        button('Return home', '', goHome),
       ]));
+      // Set home — only relevant for GRBL machines (iDraw has no limit switches)
+      if (MACHINES[machine].protocol === 'grbl') {
+        body.append(el('div', { className: 'row', style: 'margin-top:4px' }, [
+          button('Set home here', 'go', setHome),
+        ]));
+        body.append(el('div', { className: 'msg', style: 'font-size:11px; color:#888', textContent: 'Move carriage to home corner first, then Set home.' }));
+      }
     }
   }
 
@@ -554,6 +559,16 @@
     try {
       if (MACHINES[machine].protocol === 'grbl') await sendGRBL(gPenDown());
       else { await sendEBB('SP,0,100\r'); }
+    } catch (e) { setState('error', e.message); }
+  }
+
+  async function setHome() {
+    // $SLP wakes the DrawCore motors and zeroes all position counters to the
+    // current carriage position. Must be called with carriage at the home corner.
+    try {
+      await send('$SLP\n');
+      await sleep(300);
+      setState(state, 'Home set. Ready to plot.');
     } catch (e) { setState('error', e.message); }
   }
 
