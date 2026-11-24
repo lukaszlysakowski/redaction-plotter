@@ -293,6 +293,9 @@
 
   let _responseResolve = null;
   function onResponse(line) {
+    // GRBL can emit [MSG:...] info lines before the actual ok/error response.
+    // Skip them so they don't consume a pending waitForResponse slot.
+    if (line.startsWith('[') || line.startsWith('<') || line === '') return;
     if (_responseResolve) {
       const r = _responseResolve;
       _responseResolve = null;
@@ -317,10 +320,7 @@
     stopRequested = false;
     pauseRequested = false;
 
-    // Wake motors
-    await sendGRBL('$SLP\n');
-
-    // Absolute mode + mm units
+    // Absolute mode + mm units ($SLP already sent by setHome)
     await sendGRBL('G90\nG21\n');
 
     // Pen up, go home
@@ -566,8 +566,7 @@
     // $SLP wakes the DrawCore motors and zeroes all position counters to the
     // current carriage position. Must be called with carriage at the home corner.
     try {
-      await send('$SLP\n');
-      await sleep(300);
+      await sendGRBL('$SLP\n');
       setState(state, 'Home set. Ready to plot.');
     } catch (e) { setState('error', e.message); }
   }
