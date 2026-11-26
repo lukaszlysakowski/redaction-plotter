@@ -52,7 +52,7 @@
   };
 
   const MARGIN_MM = 15;
-  const DEFAULT_PAPER = '11x17';
+  const DEFAULT_PAPER = 'a3';
 
   // ── state ────────────────────────────────────────────────────────────────────
 
@@ -180,10 +180,13 @@
 
   // Compute the canvas→paper-mm transform that fits the canvas bounding box to
   // the paper with MARGIN_MM margin. Mirrors axiplot.fit_transform logic.
+  // Plotters are landscape machines, so we always use max(w,h) as page width
+  // (the long axis = page_x) and min(w,h) as page height (the short axis = page_y).
+  // This causes a portrait canvas to be rotated 90° to fill the landscape bed.
   function computeTransform(canvasW, canvasH, paperKey) {
     const p = PAPERS[paperKey] || PAPERS[DEFAULT_PAPER];
-    const pw = p.w - 2 * MARGIN_MM;
-    const ph = p.h - 2 * MARGIN_MM;
+    const pw = Math.max(p.w, p.h) - 2 * MARGIN_MM;
+    const ph = Math.min(p.w, p.h) - 2 * MARGIN_MM;
 
     // Try upright
     const su = Math.min(pw / canvasW, ph / canvasH);
