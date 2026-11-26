@@ -34,11 +34,11 @@
   //   home = top-left of landscape sheet; page X = machine −Y (420 mm), page Y = machine −X (297 mm)
   //   feeds: rapid 9000 mm/min, draw 2400 mm/min; pen Z: up 0.5 mm, down 5 mm
   const IDRAW = {
-    penUp:   0.5,   // mm Z
-    penDown: 5.0,   // mm Z
+    penUp:    0.5,  // mm Z (absolute, relative to $SLP zero)
+    penDown:  5.0,  // mm Z
+    penFeed:  5000, // mm/min for Z moves (drawcore default)
     feedDraw: 2400, // mm/min
     feedRapid: 9000,
-    stepsPerMm: 1,  // GRBL already works in mm
   };
 
   // AxiDraw/EBB geometry:
@@ -73,9 +73,6 @@
   let currentPtIdx = 0;
   let timer = null;
   let readBuffer = '';
-  let plotPosX = 0; // tracked position in page-mm from home (G91 mode)
-  let plotPosY = 0;
-  let plotPosZ = 0; // tracked Z in mm (pen up/down accumulate in G91 mode)
 
   // ── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -250,7 +247,6 @@
       } else {
         await send('v\r');           // EBB version query
       }
-      plotPosX = 0; plotPosY = 0; plotPosZ = 0;
       setState('idle', 'Move carriage to home corner (top-left), then click Start plot.');
     } catch (e) {
       setState('error', e.message === 'No port selected.' ? 'No port selected.' : `Connect failed: ${e.message}`);
@@ -326,29 +322,14 @@
     stopRequested = false;
     pauseRequested = false;
 
-    // Wake motors. Carriage must be physically at the home corner (top-left).
-    // $SLP zeroes GRBL position counters to wherever the carriage is right now.
-    await sendGRBL('$SLP\n');
-
-    // Relative positioning mode + mm units.
-    // Using G91 means every move is a delta from current position — no dependency
-    // on GRBL's absolute coordinate origin, which varies by firmware/reset.
-    await sendGRBL('G91\nG21\n');
+    // Mirror drawcore.py's fresh-plot sequence exactly:
+    //   1. G21 G90 + pen UP first (so $SLP zeroes Z at the raised height)
+    //   2. $SLP after pen is raised (wakes motors, zeroes all axes to 0,0,0)
+    //   3. Absolute negative coordinates: G-code X = −page_y, G-code Y = −page_x
+    await sendGRBL('G21\nG90\n');
     await sendGRBL(gPenUp());
-
-    plotPosX = 0;
-    plotPosY = 0;
-    plotPosZ = 0;
-
-    // Move to page-mm position (tx, ty) using a relative delta from current tracked pos.
-    async function relMoveTo(tx, ty, type, feed) {
-      const dx = tx - plotPosX;
-      const dy = ty - plotPosY;
-      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return;
-      plotPosX = tx;
-      plotPosY = ty;
-      await sendGRBL(gRelMotion(dx, dy, type, feed));
-    }
+    await sendGRBL('$SLP\n');
+    await sleep(300); // give firmware time to settle after $SLP
 
     let total = paths.length, done = 0;
 
@@ -361,14 +342,14 @@
 
       const first = canvasToMm(path.pts[0], tf);
       await sendGRBL(gPenUp());
-      await relMoveTo(first.x, first.y, 'G0', IDRAW.feedRapid);
+      await sendGRBL(gRapid(first.x, first.y));
       await sendGRBL(gPenDown());
 
       for (let i = 1; i < path.pts.length; i++) {
         if (stopRequested) break;
         while (pauseRequested && !stopRequested) await sleep(200);
         const pt = canvasToMm(path.pts[i], tf);
-        await relMoveTo(pt.x, pt.y, 'G1', IDRAW.feedDraw);
+        await sendGRBL(gFeed(pt.x, pt.y));
       }
 
       done++;
@@ -378,13 +359,7 @@
     }
 
     await sendGRBL(gPenUp());
-    // Return to home by reversing accumulated position.
-    if (Math.abs(plotPosX) > 0.001 || Math.abs(plotPosY) > 0.001) {
-      await sendGRBL(gRelMotion(-plotPosX, -plotPosY, 'G0', IDRAW.feedRapid));
-      plotPosX = 0;
-      plotPosY = 0;
-    }
-    await sendGRBL('G90\n'); // back to absolute mode
+    await sendGRBL(gRapid(0, 0)); // absolute 0,0 = home (where $SLP zeroed)
     await sendGRBL('M5\n');
 
     setState(stopRequested ? 'ready' : 'done', stopRequested ? 'Cancelled.' : 'Plot finished.');
@@ -398,24 +373,19 @@
     }
   }
 
-  // G91 mode: Z moves are relative, so track current Z and send only the delta.
-  function gPenUp() {
-    const dz = IDRAW.penUp - plotPosZ;
-    plotPosZ = IDRAW.penUp;
-    return Math.abs(dz) > 0.001 ? `G0 Z${dz.toFixed(3)} F${IDRAW.feedRapid}\n` : '';
+  // All G-code uses G1 (like drawcore.py) — speed difference is in F value only.
+  // iDraw axis mapping (absolute coords): G-code X = −page_y, G-code Y = −page_x
+  function gPenUp()   { return `G1 Z${IDRAW.penUp} F${IDRAW.penFeed}\n`; }
+  function gPenDown() { return `G1 Z${IDRAW.penDown} F${IDRAW.penFeed}\n`; }
+  function gRapid(px, py) {
+    if (MACHINES[machine].axisSwap)
+      return `G1 X${(-py).toFixed(3)} Y${(-px).toFixed(3)} F${IDRAW.feedRapid}\n`;
+    return `G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${IDRAW.feedRapid}\n`;
   }
-  function gPenDown() {
-    const dz = IDRAW.penDown - plotPosZ;
-    plotPosZ = IDRAW.penDown;
-    return Math.abs(dz) > 0.001 ? `G0 Z${dz.toFixed(3)} F${IDRAW.feedRapid}\n` : '';
-  }
-
-  // Build a G0/G1 move command from a page-mm delta (dx, dy).
-  // iDraw axis mapping: machine_X = −page_Y, machine_Y = −page_X
-  function gRelMotion(dx, dy, type, feed) {
-    const mx = MACHINES[machine].axisSwap ? -dy : dx;
-    const my = MACHINES[machine].axisSwap ? -dx : dy;
-    return `${type} X${mx.toFixed(3)} Y${my.toFixed(3)} F${feed}\n`;
+  function gFeed(px, py) {
+    if (MACHINES[machine].axisSwap)
+      return `G1 X${(-py).toFixed(3)} Y${(-px).toFixed(3)} F${IDRAW.feedDraw}\n`;
+    return `G1 X${px.toFixed(3)} Y${py.toFixed(3)} F${IDRAW.feedDraw}\n`;
   }
 
   // ── EBB plotting (AxiDraw) ───────────────────────────────────────────────────
@@ -613,11 +583,7 @@
     try {
       if (MACHINES[machine].protocol === 'grbl') {
         await sendGRBL(gPenUp());
-        if (Math.abs(plotPosX) > 0.001 || Math.abs(plotPosY) > 0.001) {
-          await sendGRBL(gRelMotion(-plotPosX, -plotPosY, 'G0', IDRAW.feedRapid));
-          plotPosX = 0;
-          plotPosY = 0;
-        }
+        await sendGRBL(gRapid(0, 0)); // absolute 0,0 = home (where $SLP zeroed)
       } else {
         await sendEBB('SP,1,100\r');
         await sleep(300);
