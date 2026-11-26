@@ -73,6 +73,8 @@
   let currentPtIdx = 0;
   let timer = null;
   let readBuffer = '';
+  let plotPosX = 0; // tracked position in page-mm from home (G91 mode)
+  let plotPosY = 0;
 
   // ── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -247,6 +249,7 @@
       } else {
         await send('v\r');           // EBB version query
       }
+      plotPosX = 0; plotPosY = 0;
       setState('idle', 'Move carriage to home corner (top-left), then click Start plot.');
     } catch (e) {
       setState('error', e.message === 'No port selected.' ? 'No port selected.' : `Connect failed: ${e.message}`);
@@ -322,14 +325,28 @@
     stopRequested = false;
     pauseRequested = false;
 
-    // Wake motors ($SLP), then explicitly set current position as 0,0,0 (G92).
-    // Carriage must be at home corner before clicking Start plot.
+    // Wake motors. Carriage must be physically at the home corner (top-left).
+    // $SLP zeroes GRBL position counters to wherever the carriage is right now.
     await sendGRBL('$SLP\n');
-    await sendGRBL('G92 X0 Y0 Z0\n');
 
-    // Absolute mode + mm units; pen up.
-    await sendGRBL('G90\nG21\n');
+    // Relative positioning mode + mm units.
+    // Using G91 means every move is a delta from current position — no dependency
+    // on GRBL's absolute coordinate origin, which varies by firmware/reset.
+    await sendGRBL('G91\nG21\n');
     await sendGRBL(gPenUp());
+
+    plotPosX = 0;
+    plotPosY = 0;
+
+    // Move to page-mm position (tx, ty) using a relative delta from current tracked pos.
+    async function relMoveTo(tx, ty, type, feed) {
+      const dx = tx - plotPosX;
+      const dy = ty - plotPosY;
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return;
+      plotPosX = tx;
+      plotPosY = ty;
+      await sendGRBL(gRelMotion(dx, dy, type, feed));
+    }
 
     let total = paths.length, done = 0;
 
@@ -342,24 +359,31 @@
 
       const first = canvasToMm(path.pts[0], tf);
       await sendGRBL(gPenUp());
-      await sendGRBL(gRapid(first.x, first.y));
+      await relMoveTo(first.x, first.y, 'G0', IDRAW.feedRapid);
       await sendGRBL(gPenDown());
 
       for (let i = 1; i < path.pts.length; i++) {
         if (stopRequested) break;
         while (pauseRequested && !stopRequested) await sleep(200);
         const pt = canvasToMm(path.pts[i], tf);
-        await sendGRBL(gFeed(pt.x, pt.y));
+        await relMoveTo(pt.x, pt.y, 'G1', IDRAW.feedDraw);
       }
 
       done++;
+      currentPathIdx = pi;
       message = `Path ${done}/${total}`;
       render();
     }
 
     await sendGRBL(gPenUp());
-    await sendGRBL(gRapid(0, 0));
-    await sendGRBL('M5\n'); // spindle off (pen up finalize)
+    // Return to home by reversing accumulated position.
+    if (Math.abs(plotPosX) > 0.001 || Math.abs(plotPosY) > 0.001) {
+      await sendGRBL(gRelMotion(-plotPosX, -plotPosY, 'G0', IDRAW.feedRapid));
+      plotPosX = 0;
+      plotPosY = 0;
+    }
+    await sendGRBL('G90\n'); // back to absolute mode
+    await sendGRBL('M5\n');
 
     setState(stopRequested ? 'ready' : 'done', stopRequested ? 'Cancelled.' : 'Plot finished.');
   }
@@ -372,17 +396,15 @@
     }
   }
 
-  function gPenUp()      { return `G0 Z${IDRAW.penUp} F${IDRAW.feedRapid}\n`; }
-  function gPenDown()    { return `G0 Z${IDRAW.penDown} F${IDRAW.feedRapid}\n`; }
-  function gRapid(x, y) {
-    if (MACHINES[machine].axisSwap)
-      return `G0 X${(-y).toFixed(3)} Y${(-x).toFixed(3)} F${IDRAW.feedRapid}\n`;
-    return `G0 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedRapid}\n`;
-  }
-  function gFeed(x, y) {
-    if (MACHINES[machine].axisSwap)
-      return `G1 X${(-y).toFixed(3)} Y${(-x).toFixed(3)} F${IDRAW.feedDraw}\n`;
-    return `G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${IDRAW.feedDraw}\n`;
+  function gPenUp()   { return `G0 Z${IDRAW.penUp} F${IDRAW.feedRapid}\n`; }
+  function gPenDown() { return `G0 Z${IDRAW.penDown} F${IDRAW.feedRapid}\n`; }
+
+  // Build a G0/G1 move command from a page-mm delta (dx, dy).
+  // iDraw axis mapping: machine_X = −page_Y, machine_Y = −page_X
+  function gRelMotion(dx, dy, type, feed) {
+    const mx = MACHINES[machine].axisSwap ? -dy : dx;
+    const my = MACHINES[machine].axisSwap ? -dx : dy;
+    return `${type} X${mx.toFixed(3)} Y${my.toFixed(3)} F${feed}\n`;
   }
 
   // ── EBB plotting (AxiDraw) ───────────────────────────────────────────────────
@@ -580,13 +602,14 @@
     try {
       if (MACHINES[machine].protocol === 'grbl') {
         await sendGRBL(gPenUp());
-        await sendGRBL(gRapid(0, 0));
+        if (Math.abs(plotPosX) > 0.001 || Math.abs(plotPosY) > 0.001) {
+          await sendGRBL(gRelMotion(-plotPosX, -plotPosY, 'G0', IDRAW.feedRapid));
+          plotPosX = 0;
+          plotPosY = 0;
+        }
       } else {
         await sendEBB('SP,1,100\r');
         await sleep(300);
-        // Move to origin
-        const tf = computeTransform(svgW(), svgH(), paper);
-        // EBB home = step position 0,0 (already tracked via m1/m2 in plotEBB; here just send 0,0)
         await sendEBB('SM,2000,0,0\r');
       }
     } catch (e) { setState('error', e.message); }
