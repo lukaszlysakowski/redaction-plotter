@@ -219,16 +219,18 @@
     }
   }
 
-  function canvasToMm(pt, tf) {
+  // titleMode: for '#aaaaaa' title paths, anchor to paper bottom margin (MARGIN_MM)
+  // instead of composition centre (tf.ox), so the slider reads as % of paper height.
+  function canvasToMm(pt, tf, titleMode) {
     if (tf.turned) {
       return {
-        x: tf.ox + (tf.canvasH - pt.y) * tf.scale,
+        x: (titleMode ? MARGIN_MM : tf.ox) + (tf.canvasH - pt.y) * tf.scale,
         y: tf.oy + pt.x * tf.scale,
       };
     }
     return {
       x: tf.ox + pt.x * tf.scale,
-      y: tf.oy + pt.y * tf.scale,
+      y: (titleMode ? MARGIN_MM : tf.oy) + pt.y * tf.scale,
     };
   }
 
@@ -342,8 +344,9 @@
 
       const path = paths[pi];
       if (!path.pts.length) continue;
+      const isTitle = path.color === '#aaaaaa';
 
-      const first = canvasToMm(path.pts[0], tf);
+      const first = canvasToMm(path.pts[0], tf, isTitle);
       await sendGRBL(gPenUp());
       await sendGRBL(gRapid(first.x, first.y));
       await sendGRBL(gPenDown());
@@ -351,7 +354,7 @@
       for (let i = 1; i < path.pts.length; i++) {
         if (stopRequested) break;
         while (pauseRequested && !stopRequested) await sleep(200);
-        const pt = canvasToMm(path.pts[i], tf);
+        const pt = canvasToMm(path.pts[i], tf, isTitle);
         await sendGRBL(gFeed(pt.x, pt.y));
       }
 
@@ -428,7 +431,8 @@
       if (stopRequested) break;
       const path = paths[pi];
       if (!path.pts.length) continue;
-      const first = canvasToMm(path.pts[0], tf);
+      const isTitle = path.color === '#aaaaaa';
+      const first = canvasToMm(path.pts[0], tf, isTitle);
       await sendEBB('SP,1,100\r'); // pen up
       await sleep(200);
       await moveTo(first.x, first.y);
@@ -436,7 +440,7 @@
       await sleep(200);
       for (let i = 1; i < path.pts.length; i++) {
         if (stopRequested) break;
-        const pt = canvasToMm(path.pts[i], tf);
+        const pt = canvasToMm(path.pts[i], tf, isTitle);
         await moveTo(pt.x, pt.y);
       }
       done++;
