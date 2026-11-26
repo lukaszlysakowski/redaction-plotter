@@ -75,6 +75,7 @@
   let readBuffer = '';
   let plotPosX = 0; // tracked position in page-mm from home (G91 mode)
   let plotPosY = 0;
+  let plotPosZ = 0; // tracked Z in mm (pen up/down accumulate in G91 mode)
 
   // ── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -249,7 +250,7 @@
       } else {
         await send('v\r');           // EBB version query
       }
-      plotPosX = 0; plotPosY = 0;
+      plotPosX = 0; plotPosY = 0; plotPosZ = 0;
       setState('idle', 'Move carriage to home corner (top-left), then click Start plot.');
     } catch (e) {
       setState('error', e.message === 'No port selected.' ? 'No port selected.' : `Connect failed: ${e.message}`);
@@ -337,6 +338,7 @@
 
     plotPosX = 0;
     plotPosY = 0;
+    plotPosZ = 0;
 
     // Move to page-mm position (tx, ty) using a relative delta from current tracked pos.
     async function relMoveTo(tx, ty, type, feed) {
@@ -396,8 +398,17 @@
     }
   }
 
-  function gPenUp()   { return `G0 Z${IDRAW.penUp} F${IDRAW.feedRapid}\n`; }
-  function gPenDown() { return `G0 Z${IDRAW.penDown} F${IDRAW.feedRapid}\n`; }
+  // G91 mode: Z moves are relative, so track current Z and send only the delta.
+  function gPenUp() {
+    const dz = IDRAW.penUp - plotPosZ;
+    plotPosZ = IDRAW.penUp;
+    return Math.abs(dz) > 0.001 ? `G0 Z${dz.toFixed(3)} F${IDRAW.feedRapid}\n` : '';
+  }
+  function gPenDown() {
+    const dz = IDRAW.penDown - plotPosZ;
+    plotPosZ = IDRAW.penDown;
+    return Math.abs(dz) > 0.001 ? `G0 Z${dz.toFixed(3)} F${IDRAW.feedRapid}\n` : '';
+  }
 
   // Build a G0/G1 move command from a page-mm delta (dx, dy).
   // iDraw axis mapping: machine_X = −page_Y, machine_Y = −page_X
