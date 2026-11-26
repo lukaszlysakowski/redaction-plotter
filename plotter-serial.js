@@ -202,12 +202,12 @@
 
     if (turned) {
       // Piece is rotated −90° on the sheet: canvas (x,y) → paper (mm):
-      //   px = margin + (p.h - 2*margin - fitH)/2 + (canvasH - y)*scale
-      //   py = margin + (p.w - 2*margin - fitW)/2 + x*scale
+      //   px = margin + (pw - fitH)/2 + (canvasH - y)*scale   canvas_y → long axis (pw)
+      //   py = margin + (ph - fitW)/2 + x*scale               canvas_x → short axis (ph)
       return {
         turned, scale,
-        ox: MARGIN_MM + (ph - fitH) / 2,
-        oy: MARGIN_MM + (pw - fitW) / 2,
+        ox: MARGIN_MM + (pw - fitH) / 2,
+        oy: MARGIN_MM + (ph - fitW) / 2,
         canvasH,
       };
     } else {
