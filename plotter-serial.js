@@ -211,7 +211,6 @@
         ox: MARGIN_MM + (pw - fitH) / 2,
         oy: MARGIN_MM + (ph - fitW) / 2,
         canvasH,
-        paperFar: Math.max(p.w, p.h) - MARGIN_MM,  // far edge of long axis (portrait bottom)
       };
     } else {
       return {
@@ -222,16 +221,13 @@
     }
   }
 
-  // titleMode: for '#aaaaaa' title paths, anchor to paper far edge (portrait bottom)
-  // instead of composition centre, so the slider reads as % from physical paper bottom.
-  // In the turned case canvas_y=canvasH maps to the NEAR end (machine home = portrait top),
-  // so to reach the far end (portrait bottom) we subtract from paperFar instead.
+  // titleMode: for '#aaaaaa' title paths, anchor to paper bottom margin (MARGIN_MM)
+  // instead of tf.ox (composition edge), so slider value 1 lands near the paper's
+  // physical bottom edge regardless of how much margin the composition leaves.
   function canvasToMm(pt, tf, titleMode) {
     if (tf.turned) {
       return {
-        x: titleMode
-          ? tf.paperFar - (tf.canvasH - pt.y) * tf.scale
-          : tf.ox + (tf.canvasH - pt.y) * tf.scale,
+        x: (titleMode ? MARGIN_MM : tf.ox) + (tf.canvasH - pt.y) * tf.scale,
         y: tf.oy + pt.x * tf.scale,
       };
     }
