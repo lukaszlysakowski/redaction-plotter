@@ -227,7 +227,7 @@
   function canvasToMm(pt, tf, titleMode) {
     if (tf.turned) {
       return {
-        x: titleMode ? (tf.canvasH - pt.y) * tf.scale - 5 : tf.ox + (tf.canvasH - pt.y) * tf.scale,
+        x: titleMode ? (tf.canvasH - pt.y) * tf.scale - 3.5 : tf.ox + (tf.canvasH - pt.y) * tf.scale,
         y: tf.oy + pt.x * tf.scale,
       };
     }
