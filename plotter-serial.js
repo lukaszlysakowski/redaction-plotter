@@ -132,7 +132,9 @@
     const result = [];
 
     // Walk groups (each is one color layer)
-    for (const g of doc.querySelectorAll('g[stroke]')) {
+    const groups = doc.querySelectorAll('g[stroke]');
+    console.log('[SerialPlot] SVG layers:', [...groups].map(g => g.getAttribute('stroke')));
+    for (const g of groups) {
       const color = g.getAttribute('stroke');
       const groupPaths = [];
 
