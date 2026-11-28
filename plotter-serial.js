@@ -63,6 +63,7 @@
   let machine = 'idraw';
   let paper = DEFAULT_PAPER;
   let svgText = null;
+  let getSVGFn = null;
   let paths = [];        // [{pts:[{x,y},...], color}]  — canvas units
   let transform = null;  // {ox, oy, scale, turned} — canvas→mm
   let state = 'disconnected'; // disconnected | idle | ready | plotting | paused | done | error
@@ -531,6 +532,9 @@
     const acts = el('div', { className: 'row' });
     if (connected && svgText && ['idle', 'ready', 'done', 'error'].includes(state)) {
       acts.append(button(state === 'done' ? 'Plot again' : 'Start plot', 'go', startPlot));
+      if (state === 'done' && getSVGFn) {
+        acts.append(button('Plot new', '', () => { svgText = getSVGFn(); setState('ready', 'Ready — click Start plot.'); startPlot(); }));
+      }
     }
     if (state === 'plotting') {
       acts.append(button('Pause', 'stop', () => { pauseRequested = true; setState('paused', 'Paused.'); }));
@@ -636,6 +640,7 @@
   }
 
   function attach(config) {
+    getSVGFn = config.getSVG;
     const btn = typeof config.button === 'string' ? document.querySelector(config.button) : config.button;
     btn.addEventListener('click', () => open(config.getSVG()));
   }
